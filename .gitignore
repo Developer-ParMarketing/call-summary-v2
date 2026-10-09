@@ -1,0 +1,5 @@
+@"
+node_modules/
+.env
+temp/
+"@ | Set-Content -Encoding ascii .gitignore
