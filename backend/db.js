@@ -4,21 +4,27 @@ const callSchema = new mongoose.Schema(
     {
         callId: { type: String, required: true, unique: true },
         firstDisposition: String,
+        secondDisposition: String,
         recordUrl: String,
 
-        // Main details (copied from dialer data for easy search / dashboard)
+        // Main details from the dialer (for search / dashboard)
         customerName: String,
         phone: String,
         email: String,
         agentName: String,
+        agentUsername: String,
         agentId: String,
         campaign: String,
         campaignId: String,
-        crmId: String,
+        brand: String,
+        callType: String,
+        source: String,
+        extensionNo: String,
         zohoRefId: String,
+        callStartTime: Date,
+        callEndTime: Date,
 
-        dialerData: Object, // ALL known dialer fields, cleaned
-        rawPayload: Object, // exactly what the dialer sent
+        dialerData: Object, // everything the dialer sent, cleaned
 
         status: {
             type: String,

@@ -39,7 +39,7 @@ async function claimNextCall() {
 // Stream the file straight to disk (doesn't load a 1-hour recording into RAM)
 async function downloadRecording(url, callId) {
     const safeName = String(callId).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filePath = path.join(TEMP_DIR, `${safeName}.mp3`);
+    const filePath = path.join(TEMP_DIR, `${safeName}.audio`);
 
     const res = await axios.get(url, {
         responseType: 'stream',
@@ -63,10 +63,11 @@ async function processCall(call) {
     console.log(`[${call.callId}] processing`);
 
     if (!isExplainDmp(call.firstDisposition)) {
-        return skip(call, 'disposition_not_explain_dmp', 'not Explain DMP');
+        return skip(call, 'disposition_not_explain_dmp', `disposition is "${call.firstDisposition || 'empty'}"`);
     }
 
     let stage = 'download';
+    let filePath; // downloaded recording (deleted at the end)
     try {
         // Retry case: transcript already saved from an earlier attempt -> reuse it
         if (call.transcript && call.transcript.trim()) {
@@ -76,10 +77,10 @@ async function processCall(call) {
                 return skip(call, 'missing_record_url', 'no recording URL');
             }
 
-            const { filePath, bytes } = await downloadRecording(call.recordUrl, call.callId);
-            call.audioFile = filePath;
-            call.audioBytes = bytes;
-            console.log(`[${call.callId}] downloaded ${(bytes / 1024 / 1024).toFixed(2)} MB`);
+            const downloaded = await downloadRecording(call.recordUrl, call.callId);
+            filePath = downloaded.filePath;
+            call.audioBytes = downloaded.bytes;
+            console.log(`[${call.callId}] downloaded ${(downloaded.bytes / 1024 / 1024).toFixed(2)} MB`);
 
             // Check real length; skip calls of 30 seconds or less
             stage = 'duration';
@@ -116,6 +117,9 @@ async function processCall(call) {
         call.errorMessage = `${stage}: ${err.message}${detail ? ` - ${detail}` : ''}`;
         await call.save();
         console.log(`[${call.callId}] failed at ${call.errorMessage}`);
+    } finally {
+        // The transcript is saved in the DB, so the audio file is no longer needed
+        if (filePath) fs.rmSync(filePath, { force: true });
     }
 }
 

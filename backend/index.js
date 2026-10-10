@@ -4,77 +4,111 @@ import { Call, Control, connectDb } from './db.js';
 import { getWindow, isInsideWindow } from './schedule.js';
 
 const app = express();
+app.use(express.json({ limit: '1mb' }));                          // JSON body
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));   // form body
+app.use(express.text({ type: 'text/plain', limit: '1mb' }));      // JSON sent as plain text
+
 const PORT = process.env.PORT || 8030;
 
-// Every field the dialer can send (names exactly as the dialer uses them)
-const DIALER_FIELDS = [
-    'Alternate_Phone_Number', 'Alternate_Phone_Number2', 'City',
-    'Client_Name_As_Mentioned_In_ZOHO', 'Client_Number_As_Mentioned_In_ZOHO',
-    'Concerned_About', 'Created_On', 'Creditors_Bank_Name', 'Creditor_Landline_Number',
-    'Credit_Score', 'Customer_Name', 'Data_Type', 'Debt_Causes', 'Debt_Level',
-    'EMI_Payments', 'Employed', 'Experiencing_Harassment', 'E_mail', 'First_Name',
-    'Harassment_Type', 'Job_Status', 'Last_Name', 'Living_Status', 'Missed_EMI',
-    'Missed_Payment', 'Monthly_Expense', 'Monthly_Income', 'No_Of_Loans', 'Number_Debt',
-    'Phone', 'Prospect', 'Received_Threats', 'SD_Portal_ID', 'Service_Type',
-    'SML_Portal_ID', 'Source', 'State', 'State_Name', 'Time_Slot', 'Whats_App_Number',
-    'zoho_refrence_id', 'agent_name', 'CallType', 'campaign_id', 'campaign',
-    'agent_id', 'did_no', 'crm_uniqe_id', 'emp_code', 'process',
-];
-
-// Clean one value: trim it; treat empty or unfilled placeholders (like "@City@") as missing
+// Clean one value: trim it; treat empty or unfilled template placeholders
+// like "{{Phone}}" or "@Phone@" as missing
 function cleanValue(value) {
     if (value == null) return undefined;
     const text = String(Array.isArray(value) ? value[0] : value).trim();
-    if (!text || /^@.*@$/.test(text)) return undefined;
+    if (!text) return undefined;
+    if (/^\{\{.*\}\}$/.test(text) || /^@.*@$/.test(text)) return undefined;
     return text;
 }
 
-// Keep only the known dialer fields that actually have a value
-function pickDialerData(query) {
+// Keep every field the dialer sent that has a real value (max 100 fields, 2000 chars each)
+function cleanPayload(payload) {
     const data = {};
-    for (const field of DIALER_FIELDS) {
-        const value = cleanValue(query[field]);
-        if (value !== undefined) data[field] = value;
+    for (const [key, value] of Object.entries(payload || {}).slice(0, 100)) {
+        if (key === 'api_key' || key.startsWith('$') || key.includes('.')) continue; // never store these
+        const v = cleanValue(value);
+        if (v !== undefined) data[key] = v.slice(0, 2000);
     }
     return data;
 }
 
-// Only requests with the correct API key get through
+// Dialer times like "2026-08-01 10:22:05" have no timezone -> treat them as India time
+function parseDialerTime(text) {
+    if (!text) return undefined;
+    let t = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(text) ? text.replace(' ', 'T') : text;
+    const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(t);
+    if (!hasTimezone && /T\d{2}:\d{2}/.test(t)) t += '+05:30';
+    const d = new Date(t);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+// Recording file name -> call ID (fallback when the dialer sends no unique_id)
+function callIdFromRecordUrl(url) {
+    if (!url) return undefined;
+    try {
+        const u = new URL(url);
+        const file = u.searchParams.get('file') || u.pathname;
+        const name = file.split('/').pop().replace(/\.[a-z0-9]+$/i, '');
+        return name || undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function getCallId(d) {
+    return d.unique_id || d.call_id || d._id || d.callId || d.uniqueid || callIdFromRecordUrl(d.record_url);
+}
+
+// API key: in the X-API-Key header OR in the URL as ?api_key=... (for dialers without headers)
 function requireApiKey(req, res, next) {
-    if (req.get('X-API-Key') !== process.env.INGEST_API_KEY) {
+    const key = req.get('X-API-Key') || req.query.api_key;
+    if (key !== process.env.INGEST_API_KEY) {
         return res.status(401).json({ error: 'Invalid API key' });
     }
     next();
 }
 
-// 1) Dialer hits this when a call ends -> we save it as "queued"
-app.get('/api/ingest/calls', requireApiKey, async (req, res) => {
-    const callId = cleanValue(req.query._id);
-    if (!callId) {
-        return res.status(400).json({ error: '_id is required' });
+// Save one call from the dialer as "queued" (used by both POST and GET)
+async function saveCall(payload, res) {
+    // Body sent as plain text -> try to read it as JSON
+    if (typeof payload === 'string') {
+        try {
+            payload = JSON.parse(payload);
+        } catch {
+            return res.status(400).json({ error: 'Body is not valid JSON' });
+        }
     }
 
-    const d = pickDialerData(req.query);
-    const fullName = [d.First_Name, d.Last_Name].filter(Boolean).join(' ');
+    const d = cleanPayload(payload);
+    const callId = getCallId(d);
+
+    if (!callId) {
+        return res.status(400).json({ error: 'Call ID missing: send unique_id, or a valid record_url' });
+    }
 
     try {
         await Call.create({
             callId,
-            firstDisposition: cleanValue(req.query.first_disposition),
-            recordUrl: cleanValue(req.query.record_url),
+            firstDisposition: d.first_disposition,
+            secondDisposition: d.second_disposition,
+            recordUrl: d.record_url,
 
-            customerName: d.Customer_Name || fullName || undefined,
-            phone: d.Phone,
-            email: d.E_mail,
+            customerName: d.cust_name || d.Customer_Name,
+            phone: d.phone || d.Phone,
+            email: d.email || d.E_mail,
             agentName: d.agent_name,
+            agentUsername: d.agent_username,
             agentId: d.agent_id,
-            campaign: d.campaign,
+            campaign: d.campaign_name || d.campaign,
             campaignId: d.campaign_id,
-            crmId: d.crm_uniqe_id,
+            brand: d.brand,
+            callType: d.call_type || d.CallType,
+            source: d.source || d.Source,
+            extensionNo: d.extension_no,
             zohoRefId: d.zoho_refrence_id,
+            callStartTime: parseDialerTime(d.call_start_time),
+            callEndTime: parseDialerTime(d.call_end_time),
 
             dialerData: d,
-            rawPayload: { ...req.query },
         });
 
         res.status(202).json({ message: 'Call saved', callId, status: 'queued' });
@@ -86,9 +120,13 @@ app.get('/api/ingest/calls', requireApiKey, async (req, res) => {
         console.error('Save failed:', err.message);
         res.status(500).json({ error: 'Failed to save call' });
     }
-});
+}
 
-// 2) Dialer polls this to get the summary
+// 1) Dialer sends a call when it ends: POST with JSON body (main) or GET with URL params
+app.post('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req.body, res));
+app.get('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req.query, res));
+
+// 2) Get the summary of one call
 app.get('/api/ingest/calls/:callId/summary', requireApiKey, async (req, res) => {
     try {
         const call = await Call.findOne({ callId: req.params.callId }).lean();
@@ -125,8 +163,7 @@ app.get('/api/ingest/calls/:callId/summary', requireApiKey, async (req, res) => 
     }
 });
 
-// 3) Start processing all queued calls NOW
-//    Add ?retryFailed=true to also re-queue failed calls first
+// 3) Start processing all queued calls NOW (?retryFailed=true also re-queues failed calls)
 app.post('/api/process/run', requireApiKey, async (req, res) => {
     try {
         let retried = 0;
@@ -177,7 +214,7 @@ app.get('/api/process/status', requireApiKey, async (req, res) => {
         const w = getWindow();
 
         res.json({
-            counts, // e.g. { queued: 5, done: 12, failed: 1 }
+            counts,
             manualRunActive: Boolean(control?.runRequested),
             lastManualRunFinishedAt: control?.lastRunFinishedAt || null,
             timeWindow: w ? w.label : 'none (manual only)',
@@ -189,10 +226,15 @@ app.get('/api/process/status', requireApiKey, async (req, res) => {
     }
 });
 
-// See what's saved (temporary, the dashboard will replace this later)
+// 6) See the latest saved calls (the dashboard will replace this later)
 app.get('/api/calls', requireApiKey, async (req, res) => {
-    const calls = await Call.find().sort({ createdAt: -1 }).limit(50);
-    res.json(calls);
+    try {
+        const calls = await Call.find().sort({ createdAt: -1 }).limit(50).lean();
+        res.json(calls);
+    } catch (err) {
+        console.error('List failed:', err.message);
+        res.status(500).json({ error: 'Failed to list calls' });
+    }
 });
 
 // Connect to the DB first, then start the server
