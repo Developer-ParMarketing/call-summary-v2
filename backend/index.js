@@ -5,9 +5,11 @@ import { Call, Control, connectDb } from './db.js';
 import { getWindow, isInsideWindow } from './schedule.js';
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));                          // JSON body
-app.use(express.urlencoded({ extended: false, limit: '1mb' }));   // form body
-app.use(express.text({ type: 'text/plain', limit: '1mb' }));      // JSON sent as plain text
+app.set('trust proxy', 'loopback'); // behind nginx: log the real client IP
+
+// The dialer body is read as RAW TEXT (any content type) and parsed by us,
+// so broken JSON never causes an error page - it is repaired or stored as-is.
+const readRawBody = express.text({ type: () => true, limit: '1mb' });
 
 const PORT = process.env.PORT || 8030;
 
@@ -76,20 +78,46 @@ function requireApiKey(req, res, next) {
     next();
 }
 
-// Save one call from the dialer as "queued" (used by both POST and GET).
-// NOTHING is required: whatever arrives is saved, even an empty or broken body.
-async function saveCall(req, payload, res) {
-    let rawBody; // kept only when the body could not be read as JSON
-
-    // Body sent as plain text -> try to read it as JSON, otherwise keep the raw text
-    if (typeof payload === 'string') {
+// Try to read text as JSON. If it fails, repair common dialer mistakes:
+// `backticks` instead of "quotes", missing commas between lines, trailing commas.
+function parseJsonLoose(text) {
+    try {
+        return { data: JSON.parse(text), repaired: false };
+    } catch {
+        const fixed = text
+            .replace(/`/g, '"')                 // `key`:`value`  ->  "key":"value"
+            .replace(/"\s*\n\s*"/g, '",\n"')     // missing comma at end of a line
+            .replace(/,\s*([}\]])/g, '$1');      // trailing comma before } or ]
         try {
-            payload = JSON.parse(payload);
+            return { data: JSON.parse(fixed), repaired: true };
         } catch {
-            rawBody = payload.slice(0, 10000);
-            payload = {};
+            return { data: undefined, repaired: false };
         }
     }
+}
+
+// Turn whatever body arrived into an object (JSON, broken JSON, form, or empty)
+function readPayload(req, body) {
+    if (body && typeof body === 'object') return { payload: body };
+
+    const text = typeof body === 'string' ? body.trim() : '';
+    if (!text) return { payload: {} };
+
+    const type = req.get('content-type') || '';
+    if (type.includes('application/x-www-form-urlencoded')) {
+        return { payload: Object.fromEntries(new URLSearchParams(text)) };
+    }
+
+    const { data, repaired } = parseJsonLoose(text);
+    if (data && typeof data === 'object') return { payload: data, repaired };
+
+    return { payload: {}, rawBody: text.slice(0, 10000) }; // could not read it at all
+}
+
+// Save one call from the dialer as "queued" (used by both POST and GET).
+// NOTHING is required: whatever arrives is saved, even an empty or broken body.
+async function saveCall(req, body, res) {
+    const { payload, rawBody, repaired } = readPayload(req, body);
 
     const d = cleanPayload(payload);
     const { callId, callIdSource } = getCallId(d);
@@ -97,7 +125,8 @@ async function saveCall(req, payload, res) {
     // One log line per dialer request -> visible in "pm2 logs cs2-api"
     console.log(
         `[ingest] ${req.method} from ${req.ip} | type=${req.get('content-type') || 'none'} | ` +
-        `fields=${Object.keys(d).length} | callId=${callId} (${callIdSource})${rawBody ? ' | body was not JSON' : ''}`
+        `fields=${Object.keys(d).length} | callId=${callId} (${callIdSource})` +
+        `${repaired ? ' | JSON was repaired' : ''}${rawBody ? ' | body was not JSON (saved as rawBody)' : ''}`
     );
 
     try {
@@ -140,7 +169,7 @@ async function saveCall(req, payload, res) {
 }
 
 // 1) Dialer sends a call when it ends: POST with JSON body (main) or GET with URL params
-app.post('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req, req.body, res));
+app.post('/api/ingest/calls', requireApiKey, readRawBody, (req, res) => saveCall(req, req.body, res));
 app.get('/api/ingest/calls', requireApiKey, (req, res) => {
     const { api_key, ...params } = req.query; // the key is not call data
     return saveCall(req, params, res);
@@ -246,7 +275,6 @@ app.get('/api/process/status', requireApiKey, async (req, res) => {
     }
 });
 
-
 // 6) See the latest saved calls (the dashboard will replace this later)
 app.get('/api/calls', requireApiKey, async (req, res) => {
     try {
@@ -256,6 +284,12 @@ app.get('/api/calls', requireApiKey, async (req, res) => {
         console.error('List failed:', err.message);
         res.status(500).json({ error: 'Failed to list calls' });
     }
+});
+
+// Any unexpected error -> short JSON answer (never an HTML page with internal details)
+app.use((err, req, res, next) => {
+    console.error(`[error] ${req.method} ${req.path}: ${err.message}`);
+    res.status(err.status || 500).json({ error: 'Request could not be processed' });
 });
 
 // Connect to the DB first, then start the server
