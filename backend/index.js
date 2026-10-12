@@ -246,4 +246,24 @@ app.get('/api/process/status', requireApiKey, async (req, res) => {
     }
 });
 
-// 6) See the
+
+// 6) See the latest saved calls (the dashboard will replace this later)
+app.get('/api/calls', requireApiKey, async (req, res) => {
+    try {
+        const calls = await Call.find().sort({ createdAt: -1 }).limit(50).lean();
+        res.json(calls);
+    } catch (err) {
+        console.error('List failed:', err.message);
+        res.status(500).json({ error: 'Failed to list calls' });
+    }
+});
+
+// Connect to the DB first, then start the server
+connectDb()
+    .then(() => {
+        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    })
+    .catch((err) => {
+        console.error('Database connection failed:', err.message);
+        process.exit(1);
+    });
