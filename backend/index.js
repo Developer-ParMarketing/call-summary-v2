@@ -85,9 +85,9 @@ function parseJsonLoose(text) {
         return { data: JSON.parse(text), repaired: false };
     } catch {
         const fixed = text
+            .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ') // invisible / non-standard spaces
+            .replace(/[\u201C\u201D\u201E\u2033]/g, '"')   // smart quotes  ->  normal quotes
             .replace(/`/g, '"')                 // `key`:`value`  ->  "key":"value"
-            .replace(/"\s*\n\s*"/g, '",\n"')     // missing comma at end of a line
-            .replace(/,\s*([}\]])/g, '$1');      // trailing comma before } or ]
         try {
             return { data: JSON.parse(fixed), repaired: true };
         } catch {
