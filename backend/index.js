@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
 import { Call, Control, connectDb } from './db.js';
 import { getWindow, isInsideWindow } from './schedule.js';
@@ -54,40 +55,56 @@ function callIdFromRecordUrl(url) {
     }
 }
 
+// Call ID: dialer's ID -> recording file name -> our own generated ID (nothing is required)
 function getCallId(d) {
-    return d.unique_id || d.call_id || d._id || d.callId || d.uniqueid || callIdFromRecordUrl(d.record_url);
+    const fromDialer = d.unique_id || d.call_id || d._id || d.callId || d.uniqueid;
+    if (fromDialer) return { callId: fromDialer, callIdSource: 'dialer' };
+
+    const fromRecording = callIdFromRecordUrl(d.record_url);
+    if (fromRecording) return { callId: fromRecording, callIdSource: 'record_url' };
+
+    return { callId: `gen-${crypto.randomUUID()}`, callIdSource: 'generated' };
 }
 
 // API key: in the X-API-Key header OR in the URL as ?api_key=... (for dialers without headers)
 function requireApiKey(req, res, next) {
     const key = req.get('X-API-Key') || req.query.api_key;
     if (key !== process.env.INGEST_API_KEY) {
+        console.log(`[auth] rejected ${req.method} ${req.path} from ${req.ip}: wrong or missing api_key`);
         return res.status(401).json({ error: 'Invalid API key' });
     }
     next();
 }
 
-// Save one call from the dialer as "queued" (used by both POST and GET)
-async function saveCall(payload, res) {
-    // Body sent as plain text -> try to read it as JSON
+// Save one call from the dialer as "queued" (used by both POST and GET).
+// NOTHING is required: whatever arrives is saved, even an empty or broken body.
+async function saveCall(req, payload, res) {
+    let rawBody; // kept only when the body could not be read as JSON
+
+    // Body sent as plain text -> try to read it as JSON, otherwise keep the raw text
     if (typeof payload === 'string') {
         try {
             payload = JSON.parse(payload);
         } catch {
-            return res.status(400).json({ error: 'Body is not valid JSON' });
+            rawBody = payload.slice(0, 10000);
+            payload = {};
         }
     }
 
     const d = cleanPayload(payload);
-    const callId = getCallId(d);
+    const { callId, callIdSource } = getCallId(d);
 
-    if (!callId) {
-        return res.status(400).json({ error: 'Call ID missing: send unique_id, or a valid record_url' });
-    }
+    // One log line per dialer request -> visible in "pm2 logs cs2-api"
+    console.log(
+        `[ingest] ${req.method} from ${req.ip} | type=${req.get('content-type') || 'none'} | ` +
+        `fields=${Object.keys(d).length} | callId=${callId} (${callIdSource})${rawBody ? ' | body was not JSON' : ''}`
+    );
 
     try {
         await Call.create({
             callId,
+            callIdSource,
+            rawBody,
             firstDisposition: d.first_disposition,
             secondDisposition: d.second_disposition,
             recordUrl: d.record_url,
@@ -123,8 +140,11 @@ async function saveCall(payload, res) {
 }
 
 // 1) Dialer sends a call when it ends: POST with JSON body (main) or GET with URL params
-app.post('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req.body, res));
-app.get('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req.query, res));
+app.post('/api/ingest/calls', requireApiKey, (req, res) => saveCall(req, req.body, res));
+app.get('/api/ingest/calls', requireApiKey, (req, res) => {
+    const { api_key, ...params } = req.query; // the key is not call data
+    return saveCall(req, params, res);
+});
 
 // 2) Get the summary of one call
 app.get('/api/ingest/calls/:callId/summary', requireApiKey, async (req, res) => {
@@ -226,23 +246,4 @@ app.get('/api/process/status', requireApiKey, async (req, res) => {
     }
 });
 
-// 6) See the latest saved calls (the dashboard will replace this later)
-app.get('/api/calls', requireApiKey, async (req, res) => {
-    try {
-        const calls = await Call.find().sort({ createdAt: -1 }).limit(50).lean();
-        res.json(calls);
-    } catch (err) {
-        console.error('List failed:', err.message);
-        res.status(500).json({ error: 'Failed to list calls' });
-    }
-});
-
-// Connect to the DB first, then start the server
-connectDb()
-    .then(() => {
-        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-    })
-    .catch((err) => {
-        console.error('Database connection failed:', err.message);
-        process.exit(1);
-    });
+// 6) See the

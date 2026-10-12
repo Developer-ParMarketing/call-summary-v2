@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 const callSchema = new mongoose.Schema(
     {
         callId: { type: String, required: true, unique: true },
+        callIdSource: String, // 'dialer' | 'record_url' | 'generated'
         firstDisposition: String,
         secondDisposition: String,
         recordUrl: String,
@@ -25,6 +26,7 @@ const callSchema = new mongoose.Schema(
         callEndTime: Date,
 
         dialerData: Object, // everything the dialer sent, cleaned
+        rawBody: String,    // the body as text, only if it was not valid JSON
 
         status: {
             type: String,
