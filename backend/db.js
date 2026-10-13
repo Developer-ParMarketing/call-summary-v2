@@ -30,7 +30,7 @@ const callSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['queued', 'processing', 'done', 'failed', 'skipped'],
+            enum: ['queued', 'processing', 'transcribed', 'done', 'failed', 'skipped'],
             default: 'queued',
         },
         skipReason: String,   // why a call was skipped

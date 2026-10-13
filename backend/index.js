@@ -88,6 +88,8 @@ function parseJsonLoose(text) {
             .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ') // invisible / non-standard spaces
             .replace(/[\u201C\u201D\u201E\u2033]/g, '"')   // smart quotes  ->  normal quotes
             .replace(/`/g, '"')                 // `key`:`value`  ->  "key":"value"
+            .replace(/"\s*\n\s*"/g, '",\n"')     // missing comma at end of a line
+            .replace(/,\s*([}\]])/g, '$1');      // trailing comma before } or ]
         try {
             return { data: JSON.parse(fixed), repaired: true };
         } catch {
@@ -186,7 +188,7 @@ app.get('/api/ingest/calls/:callId/summary', requireApiKey, async (req, res) => 
 
         const base = { callId: call.callId, status: call.status };
 
-        if (call.status === 'queued' || call.status === 'processing') {
+        if (call.status === 'queued' || call.status === 'processing' || call.status === 'transcribed') {
             return res.status(202).json({ ...base, message: 'Summary not ready yet, try again later' });
         }
 
@@ -212,13 +214,22 @@ app.get('/api/ingest/calls/:callId/summary', requireApiKey, async (req, res) => 
     }
 });
 
-// 3) Start processing all queued calls NOW (?retryFailed=true also re-queues failed calls)
+// 3) Start processing all queued calls NOW
+//    ?retryFailed=true  also re-queues failed calls
+//    ?summarise=true    also re-queues 'transcribed' calls so they get their summary
 app.post('/api/process/run', requireApiKey, async (req, res) => {
     try {
         let retried = 0;
         if (req.query.retryFailed === 'true') {
             const r = await Call.updateMany({ status: 'failed' }, { $set: { status: 'queued' } });
             retried = r.modifiedCount;
+        }
+
+        // ?summarise=true -> send calls that only have a transcript back to the queue for their summary
+        let toSummarise = 0;
+        if (req.query.summarise === 'true') {
+            const r = await Call.updateMany({ status: 'transcribed' }, { $set: { status: 'queued' } });
+            toSummarise = r.modifiedCount;
         }
 
         const queued = await Call.countDocuments({ status: 'queued' });
@@ -236,6 +247,7 @@ app.post('/api/process/run', requireApiKey, async (req, res) => {
             message: 'Processing started (worker picks it up within 10 seconds)',
             queued,
             retriedFailed: retried,
+            sentForSummary: toSummarise,
         });
     } catch (err) {
         console.error('Run request failed:', err.message);

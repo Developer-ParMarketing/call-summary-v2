@@ -103,6 +103,15 @@ async function processCall(call) {
             return skip(call, 'no_speech', 'no speech found');
         }
 
+        // Summaries switched off (e.g. no OpenAI credits) -> keep the transcript, summarise later
+        if (process.env.SUMMARY_ENABLED === 'false') {
+            call.status = 'transcribed';
+            call.errorMessage = undefined;
+            await call.save();
+            console.log(`[${call.callId}] transcribed - summary skipped (SUMMARY_ENABLED=false)`);
+            return;
+        }
+
         stage = 'summary';
         console.log(`[${call.callId}] summarising...`);
         call.summary = await summariseTranscript(call.transcript);
@@ -178,6 +187,7 @@ connectDb()
     .then(() => {
         const w = getWindow();
         console.log(`Worker started. Time window: ${w ? w.label : 'none (manual only)'}`);
+        console.log(`Summaries: ${process.env.SUMMARY_ENABLED === 'false' ? 'OFF (transcribe only)' : 'ON'}`);
         loop();
     })
     .catch((err) => {
