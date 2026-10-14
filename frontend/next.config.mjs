@@ -5,7 +5,7 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
 // Production (npm run build): a static site in ./out, served by nginx (nginx forwards /api/* to the backend).
 export default function nextConfig(phase) {
     if (phase === PHASE_DEVELOPMENT_SERVER) {
-        const backend = process.env.BACKEND_URL || 'http://call-summary-backend.parmarketing.co.uk';
+        const backend = process.env.BACKEND_URL || 'http://localhost:8030';
         return {
             async rewrites() {
                 return [{ source: '/api/:path*', destination: `${backend}/api/:path*` }];

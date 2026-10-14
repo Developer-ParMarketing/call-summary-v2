@@ -1,8 +1,14 @@
-// Search box, disposition dropdown and date range
+// "Explain DMP only" switch, search box, disposition dropdown and date range
 
-export default function Filters({ search, onSearch, disposition, dispositions, from, to, onChange, onClear }) {
+export default function Filters({
+    dmpOnly, onDmpOnly, dmpLabel, search, onSearch, disposition, dispositions, from, to, onChange, onClear,
+}) {
     return (
         <div className="filters">
+            <label className="switch" title={dmpLabel}>
+                <input type="checkbox" checked={dmpOnly} onChange={(e) => onDmpOnly(e.target.checked)} />
+                Explain DMP calls only
+            </label>
             <input
                 type="search"
                 value={search}

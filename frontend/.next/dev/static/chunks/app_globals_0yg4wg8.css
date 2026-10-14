@@ -536,4 +536,55 @@ dialog input {
   }
 }
 
+.switch {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  border-radius: 6px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 13.5px;
+  display: inline-flex;
+  color: var(--ink) !important;
+}
+
+.switch input {
+  accent-color: var(--accent);
+}
+
+.tabs {
+  border: 1px solid var(--line);
+  vertical-align: middle;
+  border-radius: 6px;
+  margin-left: 10px;
+  display: inline-flex;
+  overflow: hidden;
+}
+
+.tabs button {
+  cursor: pointer;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 3px 10px;
+  font-size: 12.5px;
+}
+
+.tabs button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.section h3 {
+  align-items: center;
+  display: flex;
+}
+
+.btn.stop {
+  border-color: var(--s-failed);
+  color: var(--s-failed);
+  font-weight: 500;
+}
+
 /*# sourceMappingURL=app_globals_0yg4wg8.css.map*/

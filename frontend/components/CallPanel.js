@@ -14,12 +14,14 @@ function Fact({ label, children }) {
 export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
     const [call, setCall] = useState(null);
     const [error, setError] = useState('');
+    const [showHindi, setShowHindi] = useState(false); // Hinglish first, original Hindi on request
 
     useEffect(() => {
         if (!callId) return;
         let cancelled = false;
         setCall(null);
         setError('');
+        setShowHindi(false);
         apiFetch(`/api/dashboard/calls/${encodeURIComponent(callId)}`, apiKey)
             .then((c) => { if (!cancelled) setCall(c); })
             .catch((e) => {
@@ -94,10 +96,24 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
                             </div>
 
                             <div className="section">
-                                <h3>Transcript</h3>
-                                {call.transcript
-                                    ? <div className="text hi" lang="hi">{call.transcript}</div>
-                                    : <div className="muted">Not transcribed.</div>}
+                                <h3>
+                                    Transcript
+                                    {call.transcriptHinglish && call.transcript && (
+                                        <span className="tabs" role="group" aria-label="Transcript language">
+                                            <button aria-pressed={!showHindi} onClick={() => setShowHindi(false)}>Hinglish</button>
+                                            <button aria-pressed={showHindi} onClick={() => setShowHindi(true)}>Original Hindi</button>
+                                        </span>
+                                    )}
+                                </h3>
+                                {!call.transcript && <div className="muted">Not transcribed.</div>}
+                                {call.transcript && (call.transcriptHinglish && !showHindi
+                                    ? <div className="text hi">{call.transcriptHinglish}</div>
+                                    : <div className="text hi" lang="hi">{call.transcript}</div>)}
+                                {call.transcript && !call.transcriptHinglish && (
+                                    <div className="muted" style={{ marginTop: 8 }}>
+                                        Hinglish version is created together with the summary, once OpenAI is switched on.
+                                    </div>
+                                )}
                             </div>
 
                             <details className="section">

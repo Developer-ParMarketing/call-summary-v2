@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import StatusBar from '@/components/StatusBar';
 import Filters from '@/components/Filters';
 import CallsTable from '@/components/CallsTable';
@@ -16,20 +16,23 @@ export default function DashboardPage() {
     const [apiKey, setApiKey] = useState('');
     const [keyPrompt, setKeyPrompt] = useState({ open: false, message: '' });
 
+    const [dmpOnly, setDmpOnly] = useState(true); // show only the calls we summarise
     const [filters, setFilters] = useState(EMPTY_FILTERS);
     const [searchInput, setSearchInput] = useState('');
     const [page, setPage] = useState(1);
 
-    const [engine, setEngine] = useState(null);       // /api/process/status
+    const [engine, setEngine] = useState(null); // /api/process/status
+    const [counts, setCounts] = useState({});   // /api/dashboard/stats
     const [list, setList] = useState({ items: [], total: 0, pages: 1 });
     const [dispositions, setDispositions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openId, setOpenId] = useState(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [toast, setToast] = useState('');
-    const [running, setRunning] = useState(false);
+    const [busy, setBusy] = useState(false);
 
-    // Read the saved key once the page is in the browser
+    const requestNo = useRef(0); // ignore answers to older requests (fast filter changes)
+
     useEffect(() => {
         const saved = loadKey();
         if (saved) setApiKey(saved);
@@ -38,43 +41,50 @@ export default function DashboardPage() {
 
     const showToast = useCallback((text) => {
         setToast(text);
-        setTimeout(() => setToast(''), 3500);
+        setTimeout(() => setToast(''), 4000);
     }, []);
 
     const handleAuthError = useCallback((message) => setKeyPrompt({ open: true, message }), []);
-
     const handleError = useCallback((e) => {
         if (e instanceof AuthError) handleAuthError(e.message);
         else showToast(`Could not load data: ${e.message}`);
     }, [handleAuthError, showToast]);
 
-    // Load status counts + the current page of calls
+    // Load processing status, counts and the current page of calls
     const refresh = useCallback(async () => {
         if (!apiKey) return;
-        const params = new URLSearchParams({ page, limit: PAGE_SIZE });
-        for (const [k, v] of Object.entries(filters)) if (v) params.set(k, v);
+        const myNo = ++requestNo.current;
+
+        const shared = new URLSearchParams();
+        if (dmpOnly) shared.set('dmpOnly', 'true');
+        for (const k of ['disposition', 'search', 'from', 'to']) if (filters[k]) shared.set(k, filters[k]);
+        const listParams = new URLSearchParams(shared);
+        listParams.set('page', page);
+        listParams.set('limit', PAGE_SIZE);
+        if (filters.status) listParams.set('status', filters.status);
+
         try {
-            const [status, calls] = await Promise.all([
+            const [status, stats, calls] = await Promise.all([
                 apiFetch('/api/process/status', apiKey),
-                apiFetch(`/api/dashboard/calls?${params}`, apiKey),
+                apiFetch(`/api/dashboard/stats?${shared}`, apiKey),
+                apiFetch(`/api/dashboard/calls?${listParams}`, apiKey),
             ]);
+            if (myNo !== requestNo.current) return; // a newer request is on its way
             setEngine(status);
+            setCounts(stats.counts);
             setList(calls);
         } catch (e) {
-            handleError(e);
+            if (myNo === requestNo.current) handleError(e);
         } finally {
-            setLoading(false);
+            if (myNo === requestNo.current) setLoading(false);
         }
-    }, [apiKey, filters, page, handleError]);
+    }, [apiKey, dmpOnly, filters, page, handleError]);
 
     useEffect(() => { refresh(); }, [refresh]);
 
-    // Dropdown values (dispositions), once per key
     useEffect(() => {
         if (!apiKey) return;
-        apiFetch('/api/dashboard/filters', apiKey)
-            .then((f) => setDispositions(f.dispositions))
-            .catch(() => {});
+        apiFetch('/api/dashboard/filters', apiKey).then((f) => setDispositions(f.dispositions)).catch(() => {});
     }, [apiKey]);
 
     // Auto-refresh every 30 seconds while the tab is visible
@@ -102,22 +112,25 @@ export default function DashboardPage() {
         setKeyPrompt({ open: false, message: '' });
     };
 
-    const processNow = async () => {
-        if (!confirm('Start processing all waiting calls now? Only Explain DMP calls are transcribed.')) return;
-        setRunning(true);
+    // Start / stop processing
+    const control = async (action) => {
+        if (action === 'run' && !confirm(`Start processing waiting calls now? Only ${(engine?.dispositions || ['Explain DMP']).join(' / ')} calls are transcribed; others are skipped.`)) return;
+        setBusy(true);
         try {
-            const r = await apiFetch('/api/process/run', apiKey, { method: 'POST' });
-            showToast(r.queued ? `Processing started for ${formatCount(r.queued)} waiting calls` : 'Nothing is waiting to be processed');
-            setTimeout(refresh, 2000);
+            const r = await apiFetch(`/api/process/${action}`, apiKey, { method: 'POST' });
+            showToast(action === 'stop' ? r.message
+                : r.queued ? `Processing started for ${formatCount(r.queued)} waiting calls` : 'Nothing is waiting to be processed');
+            setTimeout(refresh, 1500);
         } catch (e) {
             handleError(e);
         } finally {
-            setRunning(false);
+            setBusy(false);
         }
     };
 
+    const running = engine?.manualRunActive;
     const engineText = engine
-        ? (engine.manualRunActive ? 'running now' : engine.insideTimeWindowNow ? 'running (night window)' : 'paused')
+        ? (running ? 'running now' : engine.insideTimeWindowNow ? 'running (night window)' : 'paused')
         : null;
     const start = list.total ? (page - 1) * PAGE_SIZE + 1 : 0;
     const end = Math.min(page * PAGE_SIZE, list.total);
@@ -128,7 +141,10 @@ export default function DashboardPage() {
                 <header className="top">
                     <h1>Call summaries</h1>
                     <div className="engine">
-                        {engine ? <>Processing <b>{engineText}</b> · night window {engine.timeWindow}</> : 'Connecting…'}
+                        {engine
+                            ? <>Processing <b>{engineText}</b> · night window {engine.timeWindow}
+                                {!engine.summariesEnabled && <> · summaries <b>off</b></>}</>
+                            : 'Connecting…'}
                     </div>
                     <div className="spacer" />
                     <label className="check">
@@ -136,13 +152,23 @@ export default function DashboardPage() {
                         Refresh every 30s
                     </label>
                     <button className="btn" onClick={refresh}>Refresh</button>
-                    <button className="btn primary" onClick={processNow} disabled={running || !apiKey}>Process queued calls now</button>
+                    {running
+                        ? <button className="btn stop" onClick={() => control('stop')} disabled={busy}>Stop processing</button>
+                        : <button className="btn primary" onClick={() => control('run')} disabled={busy || !apiKey}>Process waiting calls now</button>}
                     <button className="btn" onClick={() => setKeyPrompt({ open: true, message: '' })} title="Change API key">Key</button>
                 </header>
 
-                <StatusBar counts={engine?.counts} active={filters.status} onSelect={(s) => setFilter('status', s)} />
+                <StatusBar
+                    counts={counts}
+                    active={filters.status}
+                    onSelect={(s) => setFilter('status', s)}
+                    label={dmpOnly ? 'with Explain DMP' : 'received from the dialer'}
+                />
 
                 <Filters
+                    dmpOnly={dmpOnly}
+                    onDmpOnly={(v) => { setDmpOnly(v); setPage(1); }}
+                    dmpLabel={`Only: ${(engine?.dispositions || []).join(', ')}`}
                     search={searchInput}
                     onSearch={setSearchInput}
                     disposition={filters.disposition}

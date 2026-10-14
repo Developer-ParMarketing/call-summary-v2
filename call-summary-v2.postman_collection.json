@@ -1,0 +1,232 @@
+{
+  "info": {
+    "name": "Call Summary v2",
+    "description": "All APIs. Set Variables (baseUrl, apiKey, callId) on the collection. The API key is sent in the URL as ?api_key= (same as the dialer).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://call-summary-backend.parmarketing.co.uk"
+    },
+    {
+      "key": "apiKey",
+      "value": "my-test-key-123"
+    },
+    {
+      "key": "callId",
+      "value": "test-unique-001"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Dialer",
+      "item": [
+        {
+          "name": "Send call (POST - what the dialer uses)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "Exactly what the dialer sends. unique_id = call ID. Change the callId variable for each new test.",
+            "url": {
+              "raw": "{{baseUrl}}/api/ingest/calls?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ingest",
+                "calls"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cust_name\": \"Ramesh Kumar\",\n  \"phone\": \"9876543210\",\n  \"email\": \"{{E_mail}}\",\n  \"agent_id\": \"A101\",\n  \"agent_username\": \"mahendra\",\n  \"agent_name\": \"Mahendra\",\n  \"campaign_id\": \"6\",\n  \"brand\": \"SingleDebt\",\n  \"campaign_name\": \"LVT Welcome Sales\",\n  \"first_disposition\": \"Explain DMP\",\n  \"second_disposition\": \"Interested\",\n  \"call_start_time\": \"2026-08-01 10:22:05\",\n  \"call_end_time\": \"2026-08-01 10:34:10\",\n  \"record_url\": \"https://pbx.citycreditmanagement.in:85/download?file=Singledebt_LVT_SD/20260801/OUT-113-9625143257-20260801-102205-1785559922.1856627.WAV\",\n  \"call_type\": \"OUTBOUND\",\n  \"source\": \"Dialer\",\n  \"extension_no\": \"113\",\n  \"Created_On\": \"2026-08-01 10:00:00\",\n  \"unique_id\": \"{{callId}}\",\n  \"zoho_refrence_id\": \"ZOHO-12345\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "202 = not ready yet, 200 = done / skipped / failed (with reason), 404 = unknown call.",
+            "url": {
+              "raw": "{{baseUrl}}/api/ingest/calls/{{callId}}/summary?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ingest",
+                "calls",
+                "{{callId}}",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Processing (for you)",
+      "item": [
+        {
+          "name": "Run now",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Process all queued calls now.",
+            "url": {
+              "raw": "{{baseUrl}}/api/process/run?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process",
+                "run"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Run now + retry failed",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Re-queue failed calls, then process everything. Saved transcripts are reused.",
+            "url": {
+              "raw": "{{baseUrl}}/api/process/run?api_key={{apiKey}}&retryFailed=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process",
+                "run"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                },
+                {
+                  "key": "retryFailed",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stop manual run",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "description": "Stops a manual run (not the night window).",
+            "url": {
+              "raw": "{{baseUrl}}/api/process/stop?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process",
+                "stop"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Counts per status + whether processing is on.",
+            "url": {
+              "raw": "{{baseUrl}}/api/process/status?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "process",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Check data",
+      "item": [
+        {
+          "name": "List last 50 calls",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Full data incl. errorMessage, transcript, summary.",
+            "url": {
+              "raw": "{{baseUrl}}/api/calls?api_key={{apiKey}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "calls"
+              ],
+              "query": [
+                {
+                  "key": "api_key",
+                  "value": "{{apiKey}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

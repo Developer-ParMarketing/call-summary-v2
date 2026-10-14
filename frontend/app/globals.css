@@ -114,3 +114,16 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; }
   }
+
+/* "Explain DMP calls only" switch */
+.switch { display: inline-flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line);
+          border-radius: 6px; padding: 7px 12px; font-size: 13.5px; color: var(--ink) !important; cursor: pointer; }
+.switch input { accent-color: var(--accent); }
+
+/* Transcript language toggle */
+.tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-left: 10px; vertical-align: middle; }
+.tabs button { border: none; background: none; padding: 3px 10px; font-size: 12.5px; cursor: pointer; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.section h3 { display: flex; align-items: center; }
+
+.btn.stop { border-color: var(--s-failed); color: var(--s-failed); font-weight: 500; }

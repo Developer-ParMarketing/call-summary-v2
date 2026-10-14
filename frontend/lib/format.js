@@ -11,6 +11,7 @@ export const STATUS = {
 export const STATUS_ORDER = ['queued', 'processing', 'transcribed', 'done', 'skipped', 'failed'];
 
 export const SKIP_TEXT = {
+    disposition_not_selected: 'Disposition not selected for processing',
     disposition_not_explain_dmp: 'Not an Explain DMP call',
     missing_record_url: 'No recording link from the dialer',
     audio_too_short: 'Call too short (30s or less)',
@@ -32,6 +33,6 @@ export const formatCount = (n) => (n || 0).toLocaleString('en-IN');
 export function callNote(call) {
     if (call.status === 'skipped') return SKIP_TEXT[call.skipReason] || call.skipReason || '';
     if (call.status === 'failed') return `Stopped at ${String(call.errorMessage || 'unknown').split(':')[0]}`;
-    if (call.status === 'transcribed') return 'Summary waits for OpenAI';
+    if (call.status === 'transcribed') return 'Transcript ready, summary waits for OpenAI';
     return '';
 }

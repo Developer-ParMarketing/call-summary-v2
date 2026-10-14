@@ -1,14 +1,14 @@
 import { STATUS, STATUS_ORDER, formatCount } from '@/lib/format';
 
 // The colour bar with every call by status. Clicking a status filters the table.
-export default function StatusBar({ counts = {}, active, onSelect }) {
+export default function StatusBar({ counts = {}, active, onSelect, label = 'received from the dialer' }) {
     const total = STATUS_ORDER.reduce((n, k) => n + (counts[k] || 0), 0);
 
     return (
         <section className="pipeline" aria-label="Calls by status">
             <div className="pipeline-head">
                 <strong>{formatCount(total)}</strong>
-                <span>calls received from the dialer</span>
+                <span>calls{' '}{label}</span>
             </div>
 
             <div className="bar">
