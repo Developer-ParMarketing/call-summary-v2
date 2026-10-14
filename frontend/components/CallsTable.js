@@ -1,5 +1,5 @@
 import StatusBadge from './StatusBadge';
-import { callNote, formatLength, formatShort } from '@/lib/format';
+import { callLength, callNote, formatShort } from '@/lib/format';
 
 export default function CallsTable({ items, loading, onOpen }) {
     return (
@@ -31,7 +31,14 @@ export default function CallsTable({ items, loading, onOpen }) {
                             <td>{c.agentName || '–'}</td>
                             <td>{c.campaign || '–'}</td>
                             <td>{c.firstDisposition || '–'}</td>
-                            <td>{formatLength(c.audioSeconds)}</td>
+                            <td>
+                                {(() => {
+                                    const len = callLength(c);
+                                    return len.fromDialer
+                                        ? <span className="sub" title="From the dialer's start and end time (no recording)">~{len.text}</span>
+                                        : len.text;
+                                })()}
+                            </td>
                             <td><StatusBadge status={c.status} /></td>
                             <td className="note">{callNote(c)}</td>
                             <td className="id">{c.callId}</td>
