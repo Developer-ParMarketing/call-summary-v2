@@ -297,7 +297,89 @@ app.get('/api/calls', requireApiKey, async (req, res) => {
         res.status(500).json({ error: 'Failed to list calls' });
     }
 });
+// ---------- Dashboard APIs (used by the dashboard website) ----------
 
+const STATUSES = ['queued', 'processing', 'transcribed', 'done', 'failed', 'skipped'];
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Build the MongoDB filter from the dashboard's filter inputs
+function dashboardFilter(q) {
+    const filter = {};
+    if (STATUSES.includes(q.status)) filter.status = q.status;
+    if (q.disposition) filter.firstDisposition = String(q.disposition);
+
+    const search = String(q.search || '').trim();
+    if (search) {
+        const rx = new RegExp(escapeRegex(search.slice(0, 100)), 'i');
+        filter.$or = [{ callId: rx }, { customerName: rx }, { phone: rx }, { agentName: rx }, { campaign: rx }];
+    }
+
+    // Dates are India days: from=2026-10-13&to=2026-10-13 -> that whole day
+    const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
+    if (isDay(q.from) || isDay(q.to)) {
+        filter.createdAt = {};
+        if (isDay(q.from)) filter.createdAt.$gte = new Date(`${q.from}T00:00:00+05:30`);
+        if (isDay(q.to)) filter.createdAt.$lt = new Date(new Date(`${q.to}T00:00:00+05:30`).getTime() + 86400000);
+    }
+    return filter;
+}
+
+// List calls (light fields only, paginated)
+app.get('/api/dashboard/calls', requireApiKey, async (req, res) => {
+    try {
+        const filter = dashboardFilter(req.query);
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const hasText = (field) => ({ $gt: [{ $strLenCP: { $ifNull: [field, ''] } }, 0] });
+
+        const [items, total] = await Promise.all([
+            Call.aggregate([
+                { $match: filter },
+                { $sort: { createdAt: -1 } },
+                { $skip: (page - 1) * limit },
+                { $limit: limit },
+                {
+                    $project: {
+                        _id: 0, callId: 1, status: 1, skipReason: 1, errorMessage: 1,
+                        customerName: 1, phone: 1, agentName: 1, campaign: 1,
+                        firstDisposition: 1, audioSeconds: 1, createdAt: 1, updatedAt: 1,
+                        hasTranscript: hasText('$transcript'),
+                        hasSummary: hasText('$summary'),
+                    },
+                },
+            ]),
+            Call.countDocuments(filter),
+        ]);
+
+        res.json({ items, total, page, pages: Math.max(Math.ceil(total / limit), 1) });
+    } catch (err) {
+        console.error('Dashboard list failed:', err.message);
+        res.status(500).json({ error: 'Failed to list calls' });
+    }
+});
+
+// One call with everything (transcript, summary, dialer fields)
+app.get('/api/dashboard/calls/:callId', requireApiKey, async (req, res) => {
+    try {
+        const call = await Call.findOne({ callId: req.params.callId }, { _id: 0, __v: 0 }).lean();
+        if (!call) return res.status(404).json({ error: 'Call not found' });
+        res.json(call);
+    } catch (err) {
+        console.error('Dashboard detail failed:', err.message);
+        res.status(500).json({ error: 'Failed to load call' });
+    }
+});
+
+// Values for the filter dropdowns
+app.get('/api/dashboard/filters', requireApiKey, async (req, res) => {
+    try {
+        const dispositions = (await Call.distinct('firstDisposition')).filter(Boolean).sort();
+        res.json({ dispositions });
+    } catch (err) {
+        console.error('Dashboard filters failed:', err.message);
+        res.status(500).json({ error: 'Failed to load filters' });
+    }
+});
 // Any unexpected error -> short JSON answer (never an HTML page with internal details)
 app.use((err, req, res, next) => {
     console.error(`[error] ${req.method} ${req.path}: ${err.message}`);
