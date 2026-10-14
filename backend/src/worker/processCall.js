@@ -2,10 +2,11 @@ import { config } from '../config/index.js';
 import { downloadRecording, removeFile } from '../services/recording.service.js';
 import { getDurationSeconds, transcribeFile } from '../services/transcribe.service.js';
 import { toHinglish } from '../services/hinglish.service.js';
+import { transliterateToHinglish } from '../services/transliterate.service.js';
 import { summarise } from '../services/summary.service.js';
 
 // Steps for one call. Each finished step is saved, so a retry continues where it stopped:
-//   download -> transcribe (Bhashini) -> Hinglish (OpenAI) -> summary (OpenAI) -> done
+//   download -> transcribe (Bhashini) -> Hinglish (Bhashini, free / or OpenAI) -> summary (OpenAI) -> done
 
 async function skip(call, reason, logText) {
     call.status = 'skipped';
@@ -45,6 +46,18 @@ export async function processCall(call) {
 
         if (!call.transcript.trim()) return await skip(call, 'no_speech', 'no speech found');
 
+        // 2a) Free Hinglish with Bhashini (works even when OpenAI is off). A failure here
+        //     doesn't fail the call - it just stays without Hinglish.
+        if (config.hinglishEnabled && config.hinglishSource === 'bhashini' && !call.transcriptHinglish?.trim()) {
+            try {
+                call.transcriptHinglish = await transliterateToHinglish(call.transcript);
+                await call.save();
+                console.log(`[${call.callId}] Hinglish ready (Bhashini, ${call.transcriptHinglish.length} characters)`);
+            } catch (err) {
+                console.log(`[${call.callId}] Hinglish skipped: ${err.message}`);
+            }
+        }
+
         // AI switched off (e.g. no OpenAI credits): keep the transcript, finish later
         if (!config.aiEnabled) {
             call.status = 'transcribed';
@@ -54,8 +67,8 @@ export async function processCall(call) {
             return;
         }
 
-        // 2) Hinglish version of the transcript
-        if (config.hinglishEnabled && !call.transcriptHinglish?.trim()) {
+        // 2b) Hinglish with OpenAI (only when HINGLISH_SOURCE=openai)
+        if (config.hinglishEnabled && config.hinglishSource === 'openai' && !call.transcriptHinglish?.trim()) {
             stage = 'hinglish';
             call.transcriptHinglish = await toHinglish(call.transcript);
             await call.save();

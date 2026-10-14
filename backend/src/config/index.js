@@ -29,6 +29,8 @@ export const config = {
     aiEnabled: process.env.SUMMARY_ENABLED !== 'false',
     // false = keep only the Hindi transcript (no Hinglish conversion)
     hinglishEnabled: process.env.HINGLISH_ENABLED !== 'false',
+    // 'bhashini' = free, right after transcription (default) | 'openai' = better English words, needs credits
+    hinglishSource: process.env.HINGLISH_SOURCE === 'openai' ? 'openai' : 'bhashini',
 
     // Only calls with these dispositions are transcribed / summarised (case doesn't matter)
     dispositions: list(process.env.PROCESS_DISPOSITIONS, 'Explain DMP,Explained DMP'),

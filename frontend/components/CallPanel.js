@@ -40,7 +40,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
 
     const open = Boolean(callId);
     const problem = call?.status === 'skipped' ? (SKIP_TEXT[call.skipReason] || call.skipReason)
-                  : call?.status === 'failed' ? call.errorMessage : '';
+        : call?.status === 'failed' ? call.errorMessage : '';
 
     return (
         <>
@@ -92,7 +92,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
                                         {call.transcript
                                             ? 'Not written yet. It is created once OpenAI summaries are switched on.'
                                             : 'Not available. The call has no transcript yet.'}
-                                      </div>}
+                                    </div>}
                             </div>
 
                             <div className="section">
@@ -111,7 +111,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
                                     : <div className="text hi" lang="hi">{call.transcript}</div>)}
                                 {call.transcript && !call.transcriptHinglish && (
                                     <div className="muted" style={{ marginTop: 8 }}>
-                                        Hinglish version is created together with the summary, once OpenAI is switched on.
+                                        Hinglish version not created yet. It is added the next time this call is processed.
                                     </div>
                                 )}
                             </div>

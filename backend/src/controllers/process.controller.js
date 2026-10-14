@@ -46,7 +46,8 @@ export async function status(req, res) {
         timeWindow: w ? w.label : 'none (manual only)',
         insideTimeWindowNow: isInsideWindow(),
         summariesEnabled: config.aiEnabled,
-        hinglishEnabled: config.aiEnabled && config.hinglishEnabled,
+        hinglishEnabled: config.hinglishEnabled,
+        hinglishSource: config.hinglishSource,
         dispositions: selectedDispositions,
     });
 }
