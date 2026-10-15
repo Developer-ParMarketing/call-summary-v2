@@ -11,10 +11,25 @@ function Fact({ label, children }) {
 }
 
 // Slide-in panel with everything about one call
-export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
+export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetried }) {
     const [call, setCall] = useState(null);
     const [error, setError] = useState('');
     const [showHindi, setShowHindi] = useState(false); // Hinglish first, original Hindi on request
+    const [retrying, setRetrying] = useState(false);
+
+    const retry = async () => {
+        setRetrying(true);
+        try {
+            const r = await apiFetch(`/api/process/retry/${encodeURIComponent(callId)}`, apiKey, { method: 'POST' });
+            onRetried?.(r.message);
+            onClose();
+        } catch (e) {
+            if (e instanceof AuthError) onAuthError(e.message);
+            else setError(`Could not retry: ${e.message}`);
+        } finally {
+            setRetrying(false);
+        }
+    };
 
     useEffect(() => {
         if (!callId) return;
@@ -63,7 +78,18 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
 
                     {call && (
                         <>
-                            {problem && <div className="section problem">{problem}</div>}
+                            {problem && (
+                                <div className="section problem">
+                                    {problem}
+                                    {call.status === 'failed' && (
+                                        <div style={{ marginTop: 10 }}>
+                                            <button className="btn primary" onClick={retry} disabled={retrying}>
+                                                {retrying ? 'Retrying…' : 'Try again'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <dl className="facts">
                                 <Fact label="Call ID">{call.callId}</Fact>
@@ -90,7 +116,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError }) {
                                     ? <div className="text">{call.summary}</div>
                                     : <div className="muted">
                                         {call.transcript
-                                            ? 'Not written yet. It is created once OpenAI summaries are switched on.'
+                                            ? 'Not written yet. It is created when this call is processed with AI summaries on.'
                                             : 'Not available. The call has no transcript yet.'}
                                     </div>}
                             </div>

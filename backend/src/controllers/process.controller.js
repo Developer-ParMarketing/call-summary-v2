@@ -24,6 +24,20 @@ export async function runNow(req, res) {
     res.status(202).json({ message: 'Processing started (worker picks it up within 10 seconds)', queued, retriedFailed, sentForSummary });
 }
 
+// POST /api/process/retry/:callId  -> try one failed call again, right now
+export async function retryCall(req, res) {
+    const call = await Call.findOneAndUpdate(
+        { callId: req.params.callId, status: 'failed' },
+        { $set: { status: 'queued' }, $unset: { errorMessage: '' } },
+        { returnDocument: 'after' }
+    );
+    if (!call) return res.status(404).json({ error: 'No failed call with this ID' });
+
+    // Start the worker so it is processed now (already-finished steps like the transcript are reused)
+    await Control.updateOne({ _id: 'worker' }, { $set: { runRequested: true, requestedAt: new Date() } }, { upsert: true });
+    res.json({ message: 'Call queued again - processing starts within 10 seconds', callId: call.callId });
+}
+
 // POST /api/process/stop  (the call in progress finishes first)
 export async function stopNow(req, res) {
     await Control.updateOne({ _id: 'worker' }, { $set: { runRequested: false } }, { upsert: true });

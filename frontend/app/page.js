@@ -84,7 +84,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!apiKey) return;
-        apiFetch('/api/dashboard/filters', apiKey).then((f) => setDispositions(f.dispositions)).catch(() => {});
+        apiFetch('/api/dashboard/filters', apiKey).then((f) => setDispositions(f.dispositions)).catch(() => { });
     }, [apiKey]);
 
     // Auto-refresh every 30 seconds while the tab is visible
@@ -110,6 +110,21 @@ export default function DashboardPage() {
         saveKey(key);
         setApiKey(key);
         setKeyPrompt({ open: false, message: '' });
+    };
+
+    // Put every failed call back in the queue and start processing
+    const retryAllFailed = async () => {
+        if (!confirm(`Try all ${counts.failed} failed calls again now?`)) return;
+        setBusy(true);
+        try {
+            const r = await apiFetch('/api/process/run?retryFailed=true', apiKey, { method: 'POST' });
+            showToast(`${formatCount(r.retriedFailed)} failed calls queued again - processing started`);
+            setTimeout(refresh, 1500);
+        } catch (e) {
+            handleError(e);
+        } finally {
+            setBusy(false);
+        }
     };
 
     // Start / stop processing
@@ -152,6 +167,11 @@ export default function DashboardPage() {
                         Refresh every 30s
                     </label>
                     <button className="btn" onClick={refresh}>Refresh</button>
+                    {counts.failed > 0 && !running && (
+                        <button className="btn stop" onClick={retryAllFailed} disabled={busy}>
+                            Retry failed ({formatCount(counts.failed)})
+                        </button>
+                    )}
                     {running
                         ? <button className="btn stop" onClick={() => control('stop')} disabled={busy}>Stop processing</button>
                         : <button className="btn primary" onClick={() => control('run')} disabled={busy || !apiKey}>Process waiting calls now</button>}
@@ -190,7 +210,13 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <CallPanel callId={openId} apiKey={apiKey} onClose={() => setOpenId(null)} onAuthError={handleAuthError} />
+            <CallPanel
+                callId={openId}
+                apiKey={apiKey}
+                onClose={() => setOpenId(null)}
+                onAuthError={handleAuthError}
+                onRetried={(msg) => { showToast(msg); setTimeout(refresh, 1500); }}
+            />
             <KeyDialog open={keyPrompt.open} message={keyPrompt.message} initialKey={apiKey} onSave={saveNewKey} />
             <div className={`toast ${toast ? 'show' : ''}`} role="status">{toast}</div>
         </>
