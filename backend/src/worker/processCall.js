@@ -77,8 +77,8 @@ export async function processCall(call) {
 
         // 3) English summary (from the Hinglish text when available - easier to read for the model)
         stage = 'summary';
+        // Only the agent and campaign are shared with the AI - no customer name, phone or email
         call.summary = await summarise(call.transcriptHinglish || call.transcript, {
-            Customer: call.customerName,
             Agent: call.agentName,
             Campaign: call.campaign,
         });

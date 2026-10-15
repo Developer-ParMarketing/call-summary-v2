@@ -20,9 +20,12 @@ export const config = {
         pipelineId: process.env.BHASHINI_PIPELINE_ID || '64392f96daac500b55c543cd',
     },
 
-    openai: {
-        apiKey: process.env.OPENAI_API_KEY,
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+    // AI provider for summaries (any OpenAI-compatible API: OpenAI, Gemini, Groq, Ollama...)
+    ai: {
+        baseUrl: (process.env.AI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, ''),
+        apiKey: process.env.AI_API_KEY || process.env.OPENAI_API_KEY,
+        model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        minGapMs: Number(process.env.AI_MIN_GAP_MS) || 0, // wait between requests (free tiers allow few per minute)
     },
 
     // false = transcribe only (no OpenAI calls at all). Calls stay 'transcribed' until switched on.

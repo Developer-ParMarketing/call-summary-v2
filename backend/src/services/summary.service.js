@@ -36,7 +36,15 @@ export async function summarise(transcript, context = {}) {
         ],
     });
 
-    const parsed = JSON.parse(res.data.choices?.[0]?.message?.content || '{}');
-    if (typeof parsed.summary !== 'string' || !parsed.summary.trim()) throw new Error('OpenAI returned no summary');
-    return parsed.summary.trim();
+    // Expected: {"summary": "..."}. Some providers wrap it in ```json fences or return plain text.
+    const content = String(res.data.choices?.[0]?.message?.content || '').trim();
+    const cleaned = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    let summary;
+    try {
+        summary = JSON.parse(cleaned).summary;
+    } catch {
+        summary = cleaned; // not JSON -> use the text as the summary
+    }
+    if (typeof summary !== 'string' || !summary.trim()) throw new Error('AI returned no summary');
+    return summary.trim();
 }
