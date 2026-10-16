@@ -4,9 +4,11 @@ import { getDurationSeconds, transcribeFile } from '../services/transcribe.servi
 import { toHinglish } from '../services/hinglish.service.js';
 import { transliterateToHinglish } from '../services/transliterate.service.js';
 import { summarise } from '../services/summary.service.js';
+import { transcribeAndSummarise } from '../services/audio-ai.service.js';
 
-// Steps for one call. Each finished step is saved, so a retry continues where it stopped:
-//   download -> transcribe (Bhashini) -> Hinglish (Bhashini, free / or OpenAI) -> summary (OpenAI) -> done
+// Steps for one call. Each finished step is saved, so a retry continues where it stopped.
+//   AI engine (default):  download -> AI listens -> Hinglish transcript + summary (one request) -> done
+//   Bhashini engine:      download -> Bhashini transcript -> Hinglish -> summary -> done
 
 async function skip(call, reason, logText) {
     call.status = 'skipped';
@@ -36,12 +38,38 @@ export async function processCall(call) {
                 return await skip(call, 'audio_too_short', `only ${call.audioSeconds}s`);
             }
 
-            stage = 'transcribe';
-            console.log(`[${call.callId}] transcribing ${call.audioSeconds}s of audio...`);
-            call.language = 'hi';
-            call.transcript = await transcribeFile(filePath, seconds, call.language);
-            await call.save();
-            console.log(`[${call.callId}] transcript ready (${call.transcript.length} characters)`);
+            // AI listens to the recording: Hinglish transcript + summary in one request
+            if (config.transcribeEngine === 'ai' && config.aiEnabled) {
+                stage = 'ai-audio';
+                console.log(`[${call.callId}] AI listening to ${call.audioSeconds}s of audio...`);
+                const out = await transcribeAndSummarise(filePath, seconds, {
+                    Agent: call.agentName,
+                    Campaign: call.campaign,
+                });
+                if (!out.transcript) return await skip(call, 'no_speech', 'no conversation in the recording');
+
+                call.transcript = out.transcript;
+                call.transcriptHinglish = out.transcript;
+                call.transcriptSource = 'ai';
+                call.language = 'hinglish';
+                call.summary = out.summary || undefined;
+                if (call.summary) {
+                    call.status = 'done';
+                    call.errorMessage = undefined;
+                    await call.save();
+                    console.log(`[${call.callId}] done - AI transcript (${out.transcript.length} chars) + summary`);
+                    return;
+                }
+                await call.save(); // transcript saved; the summary step below fills the gap
+            } else {
+                stage = 'transcribe';
+                console.log(`[${call.callId}] transcribing ${call.audioSeconds}s of audio...`);
+                call.language = 'hi';
+                call.transcriptSource = 'bhashini';
+                call.transcript = await transcribeFile(filePath, seconds, call.language);
+                await call.save();
+                console.log(`[${call.callId}] transcript ready (${call.transcript.length} characters)`);
+            }
         }
 
         if (!call.transcript.trim()) return await skip(call, 'no_speech', 'no speech found');

@@ -137,7 +137,8 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
                             <div className="section">
                                 <h3>
                                     Transcript
-                                    {call.transcriptHinglish && call.transcript && (
+                                    {call.transcriptSource === 'ai' && <span className="sub" style={{ fontWeight: 400, marginLeft: 8 }}>by AI from the recording</span>}
+                                    {call.transcriptHinglish && call.transcript && call.transcriptHinglish !== call.transcript && (
                                         <span className="tabs" role="group" aria-label="Transcript language">
                                             <button aria-pressed={!showHindi} onClick={() => setShowHindi(false)}>Hinglish</button>
                                             <button aria-pressed={showHindi} onClick={() => setShowHindi(true)}>Original Hindi</button>

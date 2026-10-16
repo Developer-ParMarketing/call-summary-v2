@@ -38,6 +38,7 @@ const callSchema = new mongoose.Schema(
         language: String,
         transcript: String,         // Bhashini output (Devanagari Hindi)
         transcriptHinglish: String, // same text in Hinglish (Roman Hindi + English words)
+        transcriptSource: String,   // 'ai' (AI listened to the audio) | 'bhashini'
         summary: String,            // English summary from OpenAI
     },
     { timestamps: true }

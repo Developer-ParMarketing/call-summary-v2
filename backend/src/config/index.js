@@ -29,12 +29,17 @@ export const config = {
         fallbackModel: process.env.AI_FALLBACK_MODEL || '', // used when the main model is overloaded (503)
     },
 
-    // false = transcribe only (no AI calls at all). Calls stay 'transcribed' until switched on.
+    // false = transcribe only (no OpenAI calls at all). Calls stay 'transcribed' until switched on.
     aiEnabled: process.env.SUMMARY_ENABLED !== 'false',
     // false = keep only the Hindi transcript (no Hinglish conversion)
     hinglishEnabled: process.env.HINGLISH_ENABLED !== 'false',
     // 'bhashini' = free, right after transcription (default) | 'openai' = better English words, needs credits
     hinglishSource: process.env.HINGLISH_SOURCE === 'openai' ? 'openai' : 'bhashini',
+
+    // How calls are transcribed:
+    //   'ai'       = the AI listens to the recording (Hinglish transcript + summary in ONE request) - best
+    //   'bhashini' = Bhashini speech-to-text, then Hinglish + summary as separate steps
+    transcribeEngine: process.env.TRANSCRIBE_ENGINE === 'bhashini' ? 'bhashini' : 'ai',
 
     // Only calls with these dispositions are transcribed / summarised (case doesn't matter)
     dispositions: list(process.env.PROCESS_DISPOSITIONS, 'Explain DMP,Explained DMP'),

@@ -66,6 +66,7 @@ connectDb()
         console.log(`Worker started. Night window: ${w ? w.label : 'none (manual only)'}`);
         console.log(`Dispositions processed: ${selectedDispositions.join(' | ')}`);
         console.log(`AI steps (Hinglish + summary): ${config.aiEnabled ? 'ON' : 'OFF (transcribe only)'}`);
+        console.log(`Transcription: ${config.transcribeEngine === 'ai' && config.aiEnabled ? 'AI listens to the recording' : 'Bhashini'}`);
 
         const stuck = await requeueStuckCalls();
         if (stuck) console.log(`Put ${stuck} unfinished calls back in the queue`);

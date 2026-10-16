@@ -62,6 +62,7 @@ export async function status(req, res) {
         summariesEnabled: config.aiEnabled,
         hinglishEnabled: config.hinglishEnabled,
         hinglishSource: config.hinglishSource,
+        transcribeEngine: config.transcribeEngine,
         dispositions: selectedDispositions,
     });
 }
