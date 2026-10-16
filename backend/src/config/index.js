@@ -26,9 +26,10 @@ export const config = {
         apiKey: process.env.AI_API_KEY || process.env.OPENAI_API_KEY,
         model: process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini',
         minGapMs: Number(process.env.AI_MIN_GAP_MS) || 0, // wait between requests (free tiers allow few per minute)
+        fallbackModel: process.env.AI_FALLBACK_MODEL || '', // used when the main model is overloaded (503)
     },
 
-    // false = transcribe only (no OpenAI calls at all). Calls stay 'transcribed' until switched on.
+    // false = transcribe only (no AI calls at all). Calls stay 'transcribed' until switched on.
     aiEnabled: process.env.SUMMARY_ENABLED !== 'false',
     // false = keep only the Hindi transcript (no Hinglish conversion)
     hinglishEnabled: process.env.HINGLISH_ENABLED !== 'false',
