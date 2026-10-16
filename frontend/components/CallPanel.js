@@ -5,6 +5,19 @@ import StatusBadge from './StatusBadge';
 import { apiFetch, AuthError } from '@/lib/api';
 import { SKIP_TEXT, formatFull, formatLength } from '@/lib/format';
 
+// Key-point summary: "Label: text" lines, with the label in bold
+function SummaryLines({ text }) {
+    const lines = String(text).split(/\n+/).map((l) => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+    return (
+        <ul className="points">
+            {lines.map((line, i) => {
+                const m = /^([^:]{2,24}):\s*(.*)$/.exec(line);
+                return <li key={i}>{m ? <><b>{m[1]}:</b> {m[2]}</> : line}</li>;
+            })}
+        </ul>
+    );
+}
+
 function Fact({ label, children }) {
     if (!children) return null;
     return (<><dt>{label}</dt><dd>{children}</dd></>);
@@ -113,7 +126,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
                             <div className="section">
                                 <h3>Summary</h3>
                                 {call.summary
-                                    ? <div className="text">{call.summary}</div>
+                                    ? <SummaryLines text={call.summary} />
                                     : <div className="muted">
                                         {call.transcript
                                             ? 'Not written yet. It is created when this call is processed with AI summaries on.'

@@ -5,24 +5,23 @@ const PROMPT = `You summarise recorded phone calls from a debt-settlement / loan
 The transcript comes from speech-to-text, so:
 - It is in Hinglish (Hindi in Roman letters mixed with English) or in Hindi.
 - It has NO speaker labels, and some words may be misheard.
+- Agent = the company's advisor. Customer = the borrower talking about THEIR loans and EMIs.
 
-Who is who:
-- Agent = the company's financial advisor (introduces themselves, says the call is recorded).
-- Customer = the borrower talking about THEIR loans, EMIs, income, problems.
-- A name the agent mentions ("you spoke with X earlier") may be a colleague, NOT the customer.
+Write a SHORT summary in English as key points: at most 6 lines, each line under 15 words.
+Use these labels, in this order, and LEAVE OUT any label the call did not cover:
+Situation: why the customer enquired / their problem
+Loans: how many, type, banks or apps, total outstanding
+EMI & income: current monthly EMI vs monthly income
+Offer: what the agent proposed
+Outcome: customer's response (interested / unsure / not interested / call back)
+Next step: what happens next, and when
 
-Write the summary in ENGLISH, in your own words (do not copy transcript lines).
-Cover:
-- Why the call happened and the customer's situation
-- Loans discussed: bank names, loan types, outstanding amounts, current EMIs
-- What the agent proposed (plan, new EMI, fees) and what the customer can afford
-- What was agreed, and next steps (documents, follow-up, timelines)
-- The customer's overall response (interested, unsure, refused)
+Rules:
+- Keep exact numbers (amounts in Rs, counts, dates). No filler words, no full paragraphs.
+- Don't guess. If something is unclear, leave that label out.
+- If the call is too short or unclear, write just one line, e.g. "Outcome: customer asked for a call back".
 
-Always include exact numbers (amounts, EMIs, fees) when they are mentioned.
-If something is unclear in the transcript, say so instead of guessing.
-
-Return ONLY a JSON object: {"summary": "<2-4 paragraphs of plain English>"}`;
+Return ONLY a JSON object: {"summary": "Situation: ...\nLoans: ...\nOutcome: ..."}`;
 
 export async function summarise(transcript, context = {}) {
     const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
