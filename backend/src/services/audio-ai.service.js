@@ -10,18 +10,20 @@ import { chatCompletion } from './openai.js';
 const PROMPT = `This is a recorded phone call between an advisor of a debt-management company in India and a customer.
 People mix Hindi and English.
 
-1) Transcribe the whole call in Hinglish: Hindi words in Roman letters (as typed on WhatsApp),
-   English words in normal English spelling, numbers and amounts as digits.
-   Start each turn on a new line with "Agent:" or "Customer:".
-2) Write a short summary as key points: at most 6 lines, each under 15 words.
-   Use these labels in this order, and LEAVE OUT any label the call did not cover:
-   Situation, Loans, EMI & income, Offer, Outcome, Next step.
-   Keep exact numbers. Don't guess. If the call is very short, one line is enough,
-   e.g. "Outcome: customer asked for a call back".
+Reply in EXACTLY this format (plain text, no JSON, no code fences):
 
-If there is no real conversation (silence, ringing, voicemail), return an empty transcript.
+=== SUMMARY ===
+Key points: at most 6 lines, each under 15 words. Use these labels in this order and LEAVE OUT
+any label the call did not cover: Situation, Loans, EMI & income, Offer, Outcome, Next step.
+Keep exact numbers. Don't guess. For a very short call one line is enough,
+e.g. "Outcome: customer asked for a call back".
 
-Return ONLY JSON: {"transcript": "Agent: ...\\nCustomer: ...", "summary": "Situation: ...\\nOutcome: ..."}`;
+=== TRANSCRIPT ===
+The whole call in Hinglish: Hindi words in Roman letters (as typed on WhatsApp), English words in
+normal English spelling, numbers and amounts as digits. Start each turn on a new line with
+"Agent:" or "Customer:".
+
+If there is no real conversation (silence, ringing, voicemail), write only: NO CONVERSATION`;
 
 // Small mono MP3 for upload (lower bitrate for long calls keeps the request small)
 function toSpeechMp3(input, output, seconds) {
@@ -35,14 +37,23 @@ function toSpeechMp3(input, output, seconds) {
     });
 }
 
-function parseJson(content) {
-    const text = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-    try {
-        return JSON.parse(text);
-    } catch {
-        throw new Error('AI did not return valid JSON');
-    }
+// Read "=== SUMMARY === ... === TRANSCRIPT === ..." (plain text is much more reliable than JSON for
+// long transcripts full of quotes and line breaks). Summary comes first, so even if a very long
+// answer gets cut off at the end, the summary survives.
+function parseAnswer(content) {
+    const text = String(content || '').trim().replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '');
+    if (/^\s*NO CONVERSATION\s*$/i.test(text)) return { transcript: '', summary: '' };
+
+    const summary = /===\s*SUMMARY\s*===\s*([\s\S]*?)(?:===\s*TRANSCRIPT\s*===|$)/i.exec(text)?.[1] || '';
+    let transcript = /===\s*TRANSCRIPT\s*===\s*([\s\S]*)$/i.exec(text)?.[1] || '';
+
+    // No markers at all -> treat the whole answer as the transcript (the summary step fills the gap)
+    if (!summary && !transcript) transcript = text;
+    if (/^\s*NO CONVERSATION\s*$/i.test(transcript)) transcript = '';
+    return { transcript: transcript.trim(), summary: summary.trim() };
 }
+
+export { parseAnswer as _parseAnswerForTests };
 
 export async function transcribeAndSummarise(filePath, seconds, context = {}) {
     const mp3Path = `${filePath}.mp3`;
@@ -53,6 +64,7 @@ export async function transcribeAndSummarise(filePath, seconds, context = {}) {
 
         const res = await chatCompletion({
             temperature: 0.2,
+            max_tokens: 32000, // long calls give long transcripts
             messages: [{
                 role: 'user',
                 content: [
@@ -62,11 +74,16 @@ export async function transcribeAndSummarise(filePath, seconds, context = {}) {
             }],
         });
 
-        const out = parseJson(res.data.choices?.[0]?.message?.content);
-        return {
-            transcript: String(out.transcript || '').trim(),
-            summary: String(out.summary || '').trim(),
-        };
+        const choice = res.data.choices?.[0];
+        const out = parseAnswer(choice?.message?.content);
+        if (choice?.finish_reason === 'length') {
+            console.log('[ai] answer was cut off (very long call) - the end of the transcript may be missing');
+        }
+        const said = String(choice?.message?.content || '');
+        if (!out.transcript && !out.summary && said.trim() && !/NO CONVERSATION/i.test(said)) {
+            throw new Error('AI answer could not be read');
+        }
+        return out;
     } finally {
         fs.rmSync(mp3Path, { force: true });
     }

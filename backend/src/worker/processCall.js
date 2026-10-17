@@ -46,10 +46,10 @@ export async function processCall(call) {
                     Agent: call.agentName,
                     Campaign: call.campaign,
                 });
-                if (!out.transcript) return await skip(call, 'no_speech', 'no conversation in the recording');
+                if (!out.transcript && !out.summary) return await skip(call, 'no_speech', 'no conversation in the recording');
 
-                call.transcript = out.transcript;
-                call.transcriptHinglish = out.transcript;
+                call.transcript = out.transcript || undefined;
+                call.transcriptHinglish = out.transcript || undefined;
                 call.transcriptSource = 'ai';
                 call.language = 'hinglish';
                 call.summary = out.summary || undefined;
@@ -57,7 +57,8 @@ export async function processCall(call) {
                     call.status = 'done';
                     call.errorMessage = undefined;
                     await call.save();
-                    console.log(`[${call.callId}] done - AI transcript (${out.transcript.length} chars) + summary`);
+                    console.log(`[${call.callId}] done - AI transcript (${out.transcript.length} chars) + summary`
+                        + (out.transcript ? '' : ' (transcript was cut off)'));
                     return;
                 }
                 await call.save(); // transcript saved; the summary step below fills the gap
