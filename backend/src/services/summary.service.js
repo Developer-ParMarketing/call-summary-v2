@@ -1,27 +1,33 @@
 import { chatCompletion } from './openai.js';
 
+// What a good summary looks like - shared by the text summary and the "AI listens" engine
+export const SUMMARY_FORMAT = `Write the summary in English so that someone who did NOT hear the call
+fully understands what happened - clear and specific, but without filler.
+
+Start with:
+Overview: 2-3 sentences (max 60 words) - who called whom and why, what was discussed, how it ended.
+
+Then key points, ONE sentence each (max 25 words), using these labels in this order.
+LEAVE OUT any label the call did not cover:
+Customer situation: their problem in their own terms (job, salary delays, medical, business loss...)
+Loans: how many, type (personal / credit card / app loans), banks or apps named, total outstanding
+EMI & income: current monthly EMI vs monthly income, missed EMIs, recovery or harassment calls
+Agent explained: the service or plan explained (e.g. combining EMIs into one, new EMI, fees, tenure)
+Customer concerns: questions, doubts or objections the customer raised
+Outcome: customer's decision or mood (interested / unsure / not interested / wants a call back)
+Next step: what happens next and when (documents, transfer to advisor, call back time)
+
+Rules: keep exact numbers (Rs amounts, counts, dates) and names of banks/apps. Don't guess -
+leave a label out if it is unclear. For a very short call, the Overview and Outcome are enough.`;
+
 const PROMPT = `You summarise recorded phone calls from a debt-settlement / loan advisory company in India.
 
-The transcript comes from speech-to-text, so:
-- It is in Hinglish (Hindi in Roman letters mixed with English) or in Hindi.
-- It has NO speaker labels, and some words may be misheard.
-- Agent = the company's advisor. Customer = the borrower talking about THEIR loans and EMIs.
+The transcript comes from speech-to-text: it is in Hinglish or Hindi, and some words may be misheard.
+Agent = the company's advisor. Customer = the borrower talking about THEIR loans and EMIs.
 
-Write a SHORT summary in English as key points: at most 6 lines, each line under 15 words.
-Use these labels, in this order, and LEAVE OUT any label the call did not cover:
-Situation: why the customer enquired / their problem
-Loans: how many, type, banks or apps, total outstanding
-EMI & income: current monthly EMI vs monthly income
-Offer: what the agent proposed
-Outcome: customer's response (interested / unsure / not interested / call back)
-Next step: what happens next, and when
+${SUMMARY_FORMAT}
 
-Rules:
-- Keep exact numbers (amounts in Rs, counts, dates). No filler words, no full paragraphs.
-- Don't guess. If something is unclear, leave that label out.
-- If the call is too short or unclear, write just one line, e.g. "Outcome: customer asked for a call back".
-
-Return ONLY a JSON object: {"summary": "Situation: ...\nLoans: ...\nOutcome: ..."}`;
+Return ONLY a JSON object: {"summary": "Overview: ...\nCustomer situation: ...\nOutcome: ..."}`;
 
 export async function summarise(transcript, context = {}) {
     const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');

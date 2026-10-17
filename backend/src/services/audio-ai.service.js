@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { chatCompletion } from './openai.js';
+import { SUMMARY_FORMAT } from './summary.service.js';
 
 // The AI listens to the recording itself and returns, in ONE request:
 //   - a Hinglish transcript with "Agent:" / "Customer:" labels
@@ -13,10 +14,7 @@ People mix Hindi and English.
 Reply in EXACTLY this format (plain text, no JSON, no code fences):
 
 === SUMMARY ===
-Key points: at most 6 lines, each under 15 words. Use these labels in this order and LEAVE OUT
-any label the call did not cover: Situation, Loans, EMI & income, Offer, Outcome, Next step.
-Keep exact numbers. Don't guess. For a very short call one line is enough,
-e.g. "Outcome: customer asked for a call back".
+${SUMMARY_FORMAT}
 
 === TRANSCRIPT ===
 The whole call in Hinglish: Hindi words in Roman letters (as typed on WhatsApp), English words in

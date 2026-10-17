@@ -631,3 +631,9 @@ dialog input {
 .points b {
   font-weight: 600;
 }
+
+.overview {
+  margin: 0 0 12px;
+  line-height: 1.65;
+  max-width: 72ch;
+}

@@ -5,16 +5,24 @@ import StatusBadge from './StatusBadge';
 import { apiFetch, AuthError } from '@/lib/api';
 import { SKIP_TEXT, formatFull, formatLength } from '@/lib/format';
 
-// Key-point summary: "Label: text" lines, with the label in bold
+// Summary: "Overview:" as a short paragraph, then "Label: text" key points with bold labels
 function SummaryLines({ text }) {
     const lines = String(text).split(/\n+/).map((l) => l.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+    const parsed = lines.map((line) => {
+        const m = /^([^:]{2,24}):\s*(.*)$/.exec(line);
+        return m ? { label: m[1], text: m[2] } : { label: '', text: line };
+    });
+    const overview = parsed.filter((p) => /^overview$/i.test(p.label));
+    const points = parsed.filter((p) => !/^overview$/i.test(p.label));
     return (
-        <ul className="points">
-            {lines.map((line, i) => {
-                const m = /^([^:]{2,24}):\s*(.*)$/.exec(line);
-                return <li key={i}>{m ? <><b>{m[1]}:</b> {m[2]}</> : line}</li>;
-            })}
-        </ul>
+        <>
+            {overview.map((p, i) => <p key={i} className="overview">{p.text}</p>)}
+            {points.length > 0 && (
+                <ul className="points">
+                    {points.map((p, i) => <li key={i}>{p.label ? <><b>{p.label}:</b> {p.text}</> : p.text}</li>)}
+                </ul>
+            )}
+        </>
     );
 }
 
