@@ -43,6 +43,12 @@ export function callLength(call) {
 export function callNote(call) {
     if (call.status === 'skipped') return SKIP_TEXT[call.skipReason] || call.skipReason || '';
     if (call.status === 'failed') return `Stopped at ${String(call.errorMessage || 'unknown').split(':')[0]}`;
-    if (call.status === 'transcribed') return 'Transcript ready, summary waits for OpenAI';
+    if (call.status === 'transcribed') return 'Transcript ready, summary not written yet';
+    if (call.status === 'done' && call.summaryPreview) {
+        // First sentence of the summary, without the "Overview:" label
+        const first = call.summaryPreview.split('\n')[0].replace(/^[^:]{2,24}:\s*/, '');
+        return first.length > 110 ? `${first.slice(0, 110).trim()}…` : first;
+    }
+    if (call.status === 'queued') return 'Waits for the night run (or Process now)';
     return '';
 }

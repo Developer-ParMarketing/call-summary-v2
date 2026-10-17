@@ -51,6 +51,7 @@ export async function listCalls(req, res) {
                     firstDisposition: 1, audioSeconds: 1, callStartTime: 1, callEndTime: 1, createdAt: 1,
                     hasTranscript: hasText('$transcript'),
                     hasSummary: hasText('$summary'),
+                    summaryPreview: { $substrCP: [{ $ifNull: ['$summary', ''] }, 0, 160] }, // first words, for the Note column
                 },
             },
         ]),
