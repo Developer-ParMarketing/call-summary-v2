@@ -1,4 +1,5 @@
 import StatusBadge from './StatusBadge';
+import ZohoBadge from './ZohoBadge';
 import { callLength, callNote, formatShort } from '@/lib/format';
 
 export default function CallsTable({ items, loading, onOpen }) {
@@ -8,13 +9,13 @@ export default function CallsTable({ items, loading, onOpen }) {
                 <thead>
                     <tr>
                         <th>Received</th><th>Customer</th><th>Agent</th><th>Campaign</th>
-                        <th>Disposition</th><th>Length</th><th>Status</th><th>Note</th><th>Call ID</th>
+                        <th>Disposition</th><th>Length</th><th>Status</th><th>Zoho</th><th>Note</th><th>Call ID</th>
                     </tr>
                 </thead>
                 <tbody>
                     {items.length === 0 && (
                         <tr>
-                            <td colSpan={9} className="empty">
+                            <td colSpan={10} className="empty">
                                 {loading ? 'Loading calls…' : 'No calls match these filters. Clear the filters to see every call.'}
                             </td>
                         </tr>
@@ -40,6 +41,7 @@ export default function CallsTable({ items, loading, onOpen }) {
                                 })()}
                             </td>
                             <td><StatusBadge status={c.status} /></td>
+                            <td><ZohoBadge status={c.zohoStatus} error={c.zohoError} /></td>
                             <td className="note">{callNote(c)}</td>
                             <td className="id">{c.callId}</td>
                         </tr>

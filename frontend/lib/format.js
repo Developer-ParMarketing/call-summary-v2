@@ -10,6 +10,15 @@ export const STATUS = {
 };
 export const STATUS_ORDER = ['queued', 'processing', 'transcribed', 'done', 'skipped', 'failed'];
 
+// Dialer remark -> Zoho (Agent_Comments)
+export const ZOHO = {
+    pending: { label: 'Waiting', color: 'var(--s-queued)', long: 'Waiting to send to Zoho' },
+    updated: { label: 'Added', color: 'var(--s-done)', long: 'Added to Zoho' },
+    not_found: { label: 'Not found', color: 'var(--s-transcribed)', long: 'Portal ID not found in Zoho (retrying every 5 min for 1 hour)' },
+    failed: { label: 'Failed', color: 'var(--s-failed)', long: 'Zoho update failed' },
+};
+export const ZOHO_ORDER = ['updated', 'pending', 'not_found', 'failed'];
+
 export const SKIP_TEXT = {
     disposition_not_selected: 'Disposition not selected for processing',
     disposition_not_explain_dmp: 'Not an Explain DMP call',

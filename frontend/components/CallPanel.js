@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import StatusBadge from './StatusBadge';
 import { apiFetch, AuthError } from '@/lib/api';
-import { SKIP_TEXT, formatFull, formatLength } from '@/lib/format';
+import { SKIP_TEXT, ZOHO, formatFull, formatLength } from '@/lib/format';
 
 // Summary: "Overview:" as a short paragraph, then "Label: text" key points with bold labels
 function SummaryLines({ text }) {
@@ -25,12 +25,7 @@ function SummaryLines({ text }) {
         </>
     );
 }
-const ZOHO_TEXT = {
-    pending: 'Waiting to send',
-    updated: 'Added to Zoho',
-    not_found: 'Portal ID not found in Zoho (retrying)',
-    failed: 'Failed',
-};
+
 function Fact({ label, children }) {
     if (!children) return null;
     return (<><dt>{label}</dt><dd>{children}</dd></>);
@@ -42,6 +37,22 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
     const [error, setError] = useState('');
     const [showHindi, setShowHindi] = useState(false); // Hinglish first, original Hindi on request
     const [retrying, setRetrying] = useState(false);
+    const [sendingZoho, setSendingZoho] = useState(false);
+
+    // Send this call's remark to Zoho again, then reload the call
+    const resendZoho = async () => {
+        setSendingZoho(true);
+        try {
+            const r = await apiFetch(`/api/process/zoho/${encodeURIComponent(callId)}`, apiKey, { method: 'POST' });
+            onRetried?.(r.message);
+            setCall(await apiFetch(`/api/dashboard/calls/${encodeURIComponent(callId)}`, apiKey));
+        } catch (e) {
+            if (e instanceof AuthError) onAuthError(e.message);
+            else setError(`Could not send to Zoho: ${e.message}`);
+        } finally {
+            setSendingZoho(false);
+        }
+    };
 
     const retry = async () => {
         setRetrying(true);
@@ -126,9 +137,18 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
                                 <Fact label="Portal ID">{call.portalId || call.sdPortalId || call.smlPortalId}</Fact>
                                 <Fact label="Remark">{call.remark}</Fact>
                                 <Fact label="Zoho remark">
-                                    {call.zohoStatus && (ZOHO_TEXT[call.zohoStatus] || call.zohoStatus)
-                                        + (call.zohoStatus === 'failed' && call.zohoError ? ` - ${call.zohoError}` : '')
-                                        + (call.zohoSyncedAt ? ` (${formatFull(call.zohoSyncedAt)})` : '')}
+                                    {call.zohoStatus && (
+                                        <>
+                                            <span style={{ color: ZOHO[call.zohoStatus]?.color }}>{ZOHO[call.zohoStatus]?.long || call.zohoStatus}</span>
+                                            {call.zohoStatus === 'failed' && call.zohoError && <div className="sub">{call.zohoError}</div>}
+                                            {call.zohoSyncedAt && <div className="sub">Last try {formatFull(call.zohoSyncedAt)} · {call.zohoAttempts || 0} {call.zohoAttempts === 1 ? 'try' : 'tries'}</div>}
+                                            {call.zohoStatus !== 'updated' && (
+                                                <button className="btn" style={{ marginTop: 6 }} onClick={resendZoho} disabled={sendingZoho}>
+                                                    {sendingZoho ? 'Sending…' : 'Send to Zoho again'}
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
                                 </Fact>
                                 <Fact label="Sub-disposition">{call.secondDisposition}</Fact>
                                 <Fact label="Call started">{formatFull(call.callStartTime)}</Fact>

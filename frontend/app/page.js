@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import StatusBar from '@/components/StatusBar';
+import ZohoBar from '@/components/ZohoBar';
 import Filters from '@/components/Filters';
 import CallsTable from '@/components/CallsTable';
 import CallPanel from '@/components/CallPanel';
@@ -10,7 +11,7 @@ import { apiFetch, AuthError, loadKey, saveKey } from '@/lib/api';
 import { formatCount } from '@/lib/format';
 
 const PAGE_SIZE = 50;
-const EMPTY_FILTERS = { status: '', disposition: '', search: '', from: '', to: '' };
+const EMPTY_FILTERS = { status: '', zoho: '', disposition: '', search: '', from: '', to: '' };
 
 export default function DashboardPage() {
     const [apiKey, setApiKey] = useState('');
@@ -23,6 +24,7 @@ export default function DashboardPage() {
 
     const [engine, setEngine] = useState(null); // /api/process/status
     const [counts, setCounts] = useState({});   // /api/dashboard/stats
+    const [zohoCounts, setZohoCounts] = useState({});
     const [list, setList] = useState({ items: [], total: 0, pages: 1 });
     const [dispositions, setDispositions] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -62,6 +64,7 @@ export default function DashboardPage() {
         listParams.set('page', page);
         listParams.set('limit', PAGE_SIZE);
         if (filters.status) listParams.set('status', filters.status);
+        if (filters.zoho) listParams.set('zoho', filters.zoho);
 
         try {
             const [status, stats, calls] = await Promise.all([
@@ -72,6 +75,7 @@ export default function DashboardPage() {
             if (myNo !== requestNo.current) return; // a newer request is on its way
             setEngine(status);
             setCounts(stats.counts);
+            setZohoCounts(stats.zohoCounts || {});
             setList(calls);
         } catch (e) {
             if (myNo === requestNo.current) handleError(e);
@@ -184,6 +188,7 @@ export default function DashboardPage() {
                     onSelect={(s) => setFilter('status', s)}
                     label={dmpOnly ? 'with Explain DMP' : 'received from the dialer'}
                 />
+                <ZohoBar counts={zohoCounts} active={filters.zoho} onSelect={(z) => setFilter('zoho', z)} />
 
                 <Filters
                     dmpOnly={dmpOnly}
@@ -193,6 +198,7 @@ export default function DashboardPage() {
                     onSearch={setSearchInput}
                     disposition={filters.disposition}
                     dispositions={dispositions}
+                    zoho={filters.zoho}
                     from={filters.from}
                     to={filters.to}
                     onChange={setFilter}

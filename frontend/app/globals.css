@@ -637,3 +637,55 @@ dialog input {
   line-height: 1.65;
   max-width: 72ch;
 }
+
+/* Zoho remarks line under the status bar */
+.zoho-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 12px;
+  font-size: 13px;
+}
+
+.zoho-bar .zoho-title {
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.zoho-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoho-bar button:hover {
+  border-color: var(--line, #ccc);
+}
+
+.zoho-bar button[aria-pressed='true'] {
+  border-color: currentColor;
+  font-weight: 600;
+}
+
+.zoho-bar .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.zoho-bar .n {
+  font-weight: 600;
+}
+
+.zoho-bar .l {
+  color: var(--muted);
+}
