@@ -25,7 +25,12 @@ function SummaryLines({ text }) {
         </>
     );
 }
-
+const ZOHO_TEXT = {
+    pending: 'Waiting to send',
+    updated: 'Added to Zoho',
+    not_found: 'Portal ID not found in Zoho (retrying)',
+    failed: 'Failed',
+};
 function Fact({ label, children }) {
     if (!children) return null;
     return (<><dt>{label}</dt><dd>{children}</dd></>);
@@ -118,6 +123,13 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
                                 <Fact label="Agent">{call.agentName}</Fact>
                                 <Fact label="Campaign">{call.campaign}</Fact>
                                 <Fact label="Brand">{call.brand}</Fact>
+                                <Fact label="Portal ID">{call.portalId || call.sdPortalId || call.smlPortalId}</Fact>
+                                <Fact label="Remark">{call.remark}</Fact>
+                                <Fact label="Zoho remark">
+                                    {call.zohoStatus && (ZOHO_TEXT[call.zohoStatus] || call.zohoStatus)
+                                        + (call.zohoStatus === 'failed' && call.zohoError ? ` - ${call.zohoError}` : '')
+                                        + (call.zohoSyncedAt ? ` (${formatFull(call.zohoSyncedAt)})` : '')}
+                                </Fact>
                                 <Fact label="Sub-disposition">{call.secondDisposition}</Fact>
                                 <Fact label="Call started">{formatFull(call.callStartTime)}</Fact>
                                 <Fact label="Call ended">{formatFull(call.callEndTime)}</Fact>

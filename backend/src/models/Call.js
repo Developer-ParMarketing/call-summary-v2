@@ -40,6 +40,18 @@ const callSchema = new mongoose.Schema(
         transcriptHinglish: String, // same text in Hinglish (Roman Hindi + English words)
         transcriptSource: String,   // 'ai' (AI listened to the audio) | 'bhashini'
         summary: String,            // English summary from OpenAI
+
+        // Dialer Remark -> Zoho (SD_Portal / SML_Portal, field Agent_Comments)
+        remark: String,             // dialer "Remark" (or "Remarks")
+        sdPortalId: String,         // dialer "SD_Portal_ID", e.g. Cus_No_328357
+        smlPortalId: String,        // dialer "SML_Portal_ID"
+        portalId: String,           // the one used for Zoho (SD or SML)
+        zohoBrand: String,          // 'sd' | 'sml'
+        zohoStatus: String,         // 'pending' | 'updated' | 'not_found' | 'failed'
+        zohoRecordId: String,
+        zohoError: String,
+        zohoAttempts: Number,
+        zohoSyncedAt: Date,
     },
     { timestamps: true }
 );
@@ -49,5 +61,6 @@ callSchema.index({ status: 1, createdAt: 1 });            // worker: oldest queu
 callSchema.index({ createdAt: -1 });                       // dashboard: newest first
 callSchema.index({ firstDisposition: 1, createdAt: -1 });  // dashboard: disposition filter
 callSchema.index({ firstDisposition: 1, status: 1 });      // stats: counts per status
+callSchema.index({ zohoStatus: 1, updatedAt: 1 });          // Zoho remark auto-retry
 
 export const Call = mongoose.model('Call', callSchema);

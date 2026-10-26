@@ -16,6 +16,7 @@ export const SKIP_TEXT = {
     missing_record_url: 'No recording link from the dialer',
     audio_too_short: 'Call too short (30s or less)',
     no_speech: 'No speech in the recording',
+    empty_recording: 'Recording is empty or unreadable',
 };
 
 const shortFmt = new Intl.DateTimeFormat('en-IN', {

@@ -52,4 +52,11 @@ export const config = {
     },
 
     minCallSeconds: Number(process.env.MIN_CALL_SECONDS) || 30,
+
+    // Dialer Remark -> Zoho portal Agent_Comments (SD / SML), same as lead-upload
+    zoho: {
+        enabled: process.env.ZOHO_REMARK_ENABLED === 'true',
+        retryMinutes: Number(process.env.ZOHO_RETRY_MINUTES) || 5,
+        maxAttempts: Number(process.env.ZOHO_MAX_ATTEMPTS) || 12, // 12 x 5 min = keep trying for 1 hour
+    },
 };

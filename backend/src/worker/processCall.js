@@ -27,12 +27,23 @@ export async function processCall(call) {
         if (!call.transcript?.trim()) {
             if (!call.recordUrl) return await skip(call, 'missing_record_url', 'no recording URL');
 
+            // Dialer times already show a short call -> skip without downloading anything
+            const dialerSeconds = call.callStartTime && call.callEndTime
+                ? (call.callEndTime - call.callStartTime) / 1000 : null;
+            if (dialerSeconds !== null && dialerSeconds >= 0 && dialerSeconds <= config.minCallSeconds) {
+                return await skip(call, 'audio_too_short', `only ${Math.round(dialerSeconds)}s (dialer times)`);
+            }
+
             const downloaded = await downloadRecording(call.recordUrl, call.callId);
             filePath = downloaded.filePath;
             call.audioBytes = downloaded.bytes;
+            if (downloaded.bytes < 1024) {
+                return await skip(call, 'empty_recording', `recording file is empty (${downloaded.bytes} bytes)`);
+            }
 
             stage = 'duration';
             const seconds = await getDurationSeconds(filePath);
+            if (seconds === null) return await skip(call, 'empty_recording', 'recording has no audio length');
             call.audioSeconds = Math.round(seconds);
             if (seconds <= config.minCallSeconds) {
                 return await skip(call, 'audio_too_short', `only ${call.audioSeconds}s`);

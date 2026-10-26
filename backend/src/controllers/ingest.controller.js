@@ -1,23 +1,45 @@
 import { Call } from '../models/Call.js';
 import { cleanPayload, getCallId, readPayload, toCallFields } from '../services/payload.js';
+import { getRemarkTarget, syncRemarkLater } from '../services/zoho.service.js';
+
+// Zoho fields for the remark (empty when the call has no SD/SML portal ID or no remark)
+function zohoFields(d) {
+    const t = getRemarkTarget(d);
+    return t ? { portalId: t.portalId, zohoBrand: t.brand, zohoStatus: 'pending', zohoAttempts: 0 } : {};
+}
 
 // Save one call from the dialer as "queued". NOTHING is required: whatever arrives is saved.
 async function saveCall(req, res, { payload, rawBody, repaired }) {
     const d = cleanPayload(payload);
     const { callId, callIdSource } = getCallId(d);
     const fields = toCallFields(d);
+    const zoho = zohoFields(d);
 
     console.log(
         `[ingest] ${req.method} from ${req.ip} | type=${req.get('content-type') || 'none'} | ` +
         `fields=${Object.keys(d).length} | callId=${callId} (${callIdSource})` +
+        `${zoho.portalId ? ` | remark for ${zoho.zohoBrand} ${zoho.portalId}` : ''}` +
         `${repaired ? ' | JSON was repaired' : ''}${rawBody ? ' | body was not JSON (saved as rawBody)' : ''}`
     );
 
     try {
-        await Call.create({ callId, callIdSource, rawBody, ...fields, dialerData: d });
+        await Call.create({ callId, callIdSource, rawBody, ...fields, ...zoho, dialerData: d });
+        if (zoho.portalId) syncRemarkLater(callId);
         return res.status(202).json({ message: 'Call saved', callId, status: 'queued' });
     } catch (err) {
         if (err.code !== 11000) throw err;
+
+        // Same call sent again with a new / changed remark -> save it and send it to Zoho
+        if (zoho.portalId) {
+            const changed = await Call.findOneAndUpdate(
+                { callId, remark: { $ne: fields.remark } },
+                { $set: { remark: fields.remark, sdPortalId: fields.sdPortalId, smlPortalId: fields.smlPortalId, ...zoho } }
+            );
+            if (changed) {
+                console.log(`[ingest] ${callId}: remark changed, sending to Zoho again`);
+                syncRemarkLater(callId);
+            }
+        }
 
         // Same call sent again. If it now brings the recording link that was missing before,
         // add it and put the call back in the queue (dialers often send before the recording is ready).

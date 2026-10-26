@@ -42,7 +42,9 @@ export function getDurationSeconds(filePath) {
         p.on('close', (code) => {
             const sec = parseFloat(out);
             if (code === 0 && Number.isFinite(sec)) resolve(sec);
-            else reject(new Error(`ffprobe failed: ${errText.slice(-200)}`));
+            // File opened fine but has no length (empty / header-only recording) -> null, caller skips it
+            else if (code === 0) resolve(null);
+            else reject(new Error(`ffprobe failed: ${errText.trim().slice(-200) || 'unreadable audio file'}`));
         });
     });
 }

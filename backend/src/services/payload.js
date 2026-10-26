@@ -111,6 +111,9 @@ export function toCallFields(d) {
         source: d.source || d.Source,
         extensionNo: d.extension_no,
         zohoRefId: d.zoho_refrence_id,
+        remark: d.Remark || d.Remarks || d.remark, // NEW
+        sdPortalId: d.SD_Portal_ID,                 // NEW
+        smlPortalId: d.SML_Portal_ID,               // NEW
         callStartTime: parseDialerTime(d.call_start_time),
         callEndTime: parseDialerTime(d.call_end_time),
     };
