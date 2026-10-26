@@ -32,7 +32,7 @@ async function saveCall(req, res, { payload, rawBody, repaired }) {
         // Same call sent again with a new / changed remark -> save it and send it to Zoho
         if (zoho.portalId) {
             const changed = await Call.findOneAndUpdate(
-                { callId, remark: { $ne: fields.remark } },
+                { callId, $or: [{ remark: { $ne: fields.remark } }, { portalId: { $ne: zoho.portalId } }] },
                 { $set: { remark: fields.remark, sdPortalId: fields.sdPortalId, smlPortalId: fields.smlPortalId, ...zoho } }
             );
             if (changed) {
