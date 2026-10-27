@@ -61,13 +61,14 @@ export async function updatePortalComment(brand, portalId, comment) {
 // Brand: dialer "brand" text (SD / SingleDebt, SML / SettleMyLoan), else whichever portal ID is present.
 export function getRemarkTarget(d = {}) {
     const remark = d.Remark || d.Remarks || d.remark;
+    const anyPortal = d.portal_id || d.portalId; // generic name, brand decides SD or SML
     const b = String(d.brand || '').toLowerCase().replace(/\s+/g, '');
     let brand = b === 'sd' || b.includes('singledebt') ? 'sd'
         : b === 'sml' || b.includes('settlemyloan') ? 'sml'
             : d.SD_Portal_ID ? 'sd'
                 : d.SML_Portal_ID ? 'sml'
                     : null;
-    const portalId = brand ? d[ZOHO_CONFIG[brand].portalKey] : undefined;
+    const portalId = brand ? (d[ZOHO_CONFIG[brand].portalKey] || anyPortal) : undefined;
     if (!brand || !portalId || !remark) return null;
     return { brand, portalId, remark };
 }

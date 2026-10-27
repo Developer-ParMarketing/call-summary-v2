@@ -2,6 +2,10 @@ import { Call } from '../models/Call.js';
 import { cleanPayload, getCallId, readPayload, toCallFields } from '../services/payload.js';
 import { getRemarkTarget, syncRemarkLater } from '../services/zoho.service.js';
 
+// Dialer fields minus the recording link and undefined values (for updating an existing call)
+function withoutRecording({ recordUrl, ...rest }) {
+    return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+}
 // Zoho fields for the remark (empty when the call has no SD/SML portal ID or no remark)
 function zohoFields(d) {
     const t = getRemarkTarget(d);
@@ -33,7 +37,7 @@ async function saveCall(req, res, { payload, rawBody, repaired }) {
         if (zoho.portalId) {
             const changed = await Call.findOneAndUpdate(
                 { callId, $or: [{ remark: { $ne: fields.remark } }, { portalId: { $ne: zoho.portalId } }] },
-                { $set: { remark: fields.remark, sdPortalId: fields.sdPortalId, smlPortalId: fields.smlPortalId, ...zoho } }
+                { $set: { ...withoutRecording(fields), ...zoho } } // recording link is handled just below
             );
             if (changed) {
                 console.log(`[ingest] ${callId}: remark changed, sending to Zoho again`);

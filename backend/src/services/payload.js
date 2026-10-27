@@ -93,6 +93,10 @@ export function getCallId(d) {
 }
 
 // Cleaned dialer fields -> our database fields
+// First key that has a value (the dialer may send snake_case, camelCase or Zoho-style names)
+const pick = (d, ...keys) => keys.map((k) => d[k]).find((v) => v !== undefined);
+
+// Cleaned dialer fields -> our database fields
 export function toCallFields(d) {
     return {
         firstDisposition: d.first_disposition,
@@ -111,9 +115,13 @@ export function toCallFields(d) {
         source: d.source || d.Source,
         extensionNo: d.extension_no,
         zohoRefId: d.zoho_refrence_id,
-        remark: d.Remark || d.Remarks || d.remark, // NEW
-        sdPortalId: d.SD_Portal_ID,                 // NEW
-        smlPortalId: d.SML_Portal_ID,               // NEW
+        remark: pick(d, 'Remark', 'Remarks', 'remark'),
+        sdPortalId: pick(d, 'SD_Portal_ID', 'sd_portal_id'),
+        smlPortalId: pick(d, 'SML_Portal_ID', 'sml_portal_id'),
+        clientNameZoho: pick(d, 'client_name_zoho', 'clientNameZoho', 'Client_Name_Zoho'),
+        clientNumberZoho: pick(d, 'client_number_zoho', 'clientNumberZoho', 'Client_Number_Zoho'),
+        creditorsBankName: pick(d, 'creditors_bank_name', 'creditorsBankName', 'Creditors_Bank_Name'),
+        creditorLandlineNumber: pick(d, 'creditor_landline_number', 'creditorLandlineNumber', 'Creditor_Landline_Number'),
         callStartTime: parseDialerTime(d.call_start_time),
         callEndTime: parseDialerTime(d.call_end_time),
     };

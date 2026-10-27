@@ -45,7 +45,11 @@ const callSchema = new mongoose.Schema(
         remark: String,             // dialer "Remark" (or "Remarks")
         sdPortalId: String,         // dialer "SD_Portal_ID", e.g. Cus_No_328357
         smlPortalId: String,        // dialer "SML_Portal_ID"
-        portalId: String,           // the one used for Zoho (SD or SML)
+        portalId: String,
+        clientNameZoho: String,     // client name as in Zoho
+        clientNumberZoho: String,   // client number as in Zoho
+        creditorsBankName: String,
+        creditorLandlineNumber: String,         // the one used for Zoho (SD or SML)
         zohoBrand: String,          // 'sd' | 'sml'
         zohoStatus: String,         // 'pending' | 'updated' | 'not_found' | 'failed'
         zohoRecordId: String,

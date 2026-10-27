@@ -22,7 +22,12 @@ function buildFilter(q, { withStatus = true } = {}) {
     const search = String(q.search || '').trim();
     if (search) {
         const rx = new RegExp(escapeRegex(search.slice(0, 100)), 'i');
-        and.push({ $or: [{ callId: rx }, { customerName: rx }, { phone: rx }, { agentName: rx }, { campaign: rx }] });
+        and.push({
+            $or: [
+                { callId: rx }, { customerName: rx }, { phone: rx }, { agentName: rx }, { campaign: rx },
+                { portalId: rx }, { clientNameZoho: rx }, { clientNumberZoho: rx },
+            ]
+        });
     }
 
     if (isDay(q.from) || isDay(q.to)) {
