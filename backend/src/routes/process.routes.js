@@ -9,6 +9,7 @@ router.post('/run', asyncHandler(runNow));
 router.post('/stop', asyncHandler(stopNow));
 router.post('/retry/:callId', asyncHandler(retryCall));
 router.get('/status', asyncHandler(status));
-router.post('/zoho/:callId', asyncHandler(resendRemark)); // send the remark to Zoho again
+// Send remark + summary to Zoho again. Optional JSON body { "summary": "..." } sets the summary first.
+router.post('/zoho/:callId', express.json({ limit: '200kb' }), asyncHandler(resendRemark));
 
 export default router;

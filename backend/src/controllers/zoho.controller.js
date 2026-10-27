@@ -5,7 +5,13 @@ import { syncRemark, syncSummary } from '../services/zoho.service.js';
 const TEXT = { updated: 'added to Zoho', not_found: 'portal ID not found in Zoho', failed: 'Zoho update failed' };
 
 // POST /api/process/zoho/:callId  -> send this call's remark AND AI summary to Zoho again, right now
+// Optional JSON body { "summary": "..." } -> save that text as the call's summary first (for testing)
 export async function resendRemark(req, res) {
+    const manualSummary = typeof req.body?.summary === 'string' ? req.body.summary.trim() : '';
+    if (manualSummary) {
+        await Call.updateOne({ callId: req.params.callId }, { $set: { summary: manualSummary.slice(0, 32000) } });
+    }
+
     const call = await Call.findOne({ callId: req.params.callId }).lean();
     if (!call) return res.status(404).json({ error: 'Call not found' });
     if (!call.portalId || !call.zohoBrand) return res.status(400).json({ error: 'This call has no SD/SML portal ID' });
