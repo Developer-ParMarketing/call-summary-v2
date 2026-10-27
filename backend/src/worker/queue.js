@@ -2,23 +2,23 @@ import { Call } from '../models/Call.js';
 import { Control } from '../models/Control.js';
 import { config } from '../config/index.js';
 import { isInsideWindow } from '../services/schedule.js';
-import { otherDispositionQuery, selectedDispositionQuery } from '../services/dispositions.js';
+import { otherCallQuery, selectedCallQuery } from '../services/dispositions.js';
 
-// Skip ALL waiting calls with other dispositions in ONE database update
-// (instead of loading and saving them one by one). Returns how many were skipped.
+// Skip ALL waiting calls that are not selected (other dispositions AND not in PROCESS_CAMPAIGNS)
+// in ONE database update (instead of loading and saving them one by one). Returns how many were skipped.
 export async function skipOtherDispositions() {
     const r = await Call.updateMany(
-        { status: 'queued', firstDisposition: otherDispositionQuery() },
+        { status: 'queued', ...otherCallQuery() },
         { $set: { status: 'skipped', skipReason: 'disposition_not_selected' } }
     );
     return r.modifiedCount;
 }
 
-// Take the oldest waiting call with a selected disposition and mark it "processing" in ONE step,
+// Take the oldest waiting selected call (disposition OR campaign) and mark it "processing" in ONE step,
 // so two workers can never grab the same call
 export function claimNextCall() {
     return Call.findOneAndUpdate(
-        { status: 'queued', firstDisposition: selectedDispositionQuery() },
+        { status: 'queued', ...selectedCallQuery() },
         { $set: { status: 'processing' } },
         { sort: { createdAt: 1 }, returnDocument: 'after' }
     );

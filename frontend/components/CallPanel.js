@@ -142,14 +142,25 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
                                             <span style={{ color: ZOHO[call.zohoStatus]?.color }}>{ZOHO[call.zohoStatus]?.long || call.zohoStatus}</span>
                                             {call.zohoStatus === 'failed' && call.zohoError && <div className="sub">{call.zohoError}</div>}
                                             {call.zohoSyncedAt && <div className="sub">Last try {formatFull(call.zohoSyncedAt)} · {call.zohoAttempts || 0} {call.zohoAttempts === 1 ? 'try' : 'tries'}</div>}
-                                            {call.zohoStatus !== 'updated' && (
-                                                <button className="btn" style={{ marginTop: 6 }} onClick={resendZoho} disabled={sendingZoho}>
-                                                    {sendingZoho ? 'Sending…' : 'Send to Zoho again'}
-                                                </button>
-                                            )}
                                         </>
                                     )}
                                 </Fact>
+                                <Fact label="Zoho AI summary">
+                                    {call.zohoSummaryStatus && (
+                                        <>
+                                            <span style={{ color: ZOHO[call.zohoSummaryStatus]?.color }}>{ZOHO[call.zohoSummaryStatus]?.long || call.zohoSummaryStatus}</span>
+                                            {call.zohoSummaryStatus === 'failed' && call.zohoSummaryError && <div className="sub">{call.zohoSummaryError}</div>}
+                                            {call.zohoSummarySyncedAt && <div className="sub">Last try {formatFull(call.zohoSummarySyncedAt)} · {call.zohoSummaryAttempts || 0} {call.zohoSummaryAttempts === 1 ? 'try' : 'tries'}</div>}
+                                        </>
+                                    )}
+                                </Fact>
+                                {call.portalId && ((call.remark && call.zohoStatus !== 'updated') || (call.summary && call.zohoSummaryStatus && call.zohoSummaryStatus !== 'updated')) && (
+                                    <><dt></dt><dd>
+                                        <button className="btn" onClick={resendZoho} disabled={sendingZoho}>
+                                            {sendingZoho ? 'Sending…' : 'Send to Zoho again'}
+                                        </button>
+                                    </dd></>
+                                )}
                                 <Fact label="Sub-disposition">{call.secondDisposition}</Fact>
                                 <Fact label="Call started">{formatFull(call.callStartTime)}</Fact>
                                 <Fact label="Call ended">{formatFull(call.callEndTime)}</Fact>

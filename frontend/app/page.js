@@ -133,7 +133,7 @@ export default function DashboardPage() {
 
     // Start / stop processing
     const control = async (action) => {
-        if (action === 'run' && !confirm(`Start processing waiting calls now? Only ${(engine?.dispositions || ['Explain DMP']).join(' / ')} calls are transcribed; others are skipped.`)) return;
+        if (action === 'run' && !confirm(`Start processing waiting calls now? Only ${(engine?.dispositions || ['Explain DMP']).join(' / ')} calls${engine?.campaigns?.length ? ` and campaigns ${engine.campaigns.join(' / ')}` : ''} are transcribed; others are skipped.`)) return;
         setBusy(true);
         try {
             const r = await apiFetch(`/api/process/${action}`, apiKey, { method: 'POST' });
@@ -186,14 +186,15 @@ export default function DashboardPage() {
                     counts={counts}
                     active={filters.status}
                     onSelect={(s) => setFilter('status', s)}
-                    label={dmpOnly ? 'with Explain DMP' : 'received from the dialer'}
+                    label={dmpOnly ? 'selected for summary' : 'received from the dialer'}
                 />
+
                 <ZohoBar counts={zohoCounts} active={filters.zoho} onSelect={(z) => setFilter('zoho', z)} />
 
                 <Filters
                     dmpOnly={dmpOnly}
                     onDmpOnly={(v) => { setDmpOnly(v); setPage(1); }}
-                    dmpLabel={`Only: ${(engine?.dispositions || []).join(', ')}`}
+                    dmpLabel={`Dispositions: ${(engine?.dispositions || []).join(', ')}${engine?.campaigns?.length ? ` | Campaigns: ${engine.campaigns.join(', ')}` : ''}`}
                     search={searchInput}
                     onSearch={setSearchInput}
                     disposition={filters.disposition}

@@ -20,7 +20,7 @@ export const ZOHO = {
 export const ZOHO_ORDER = ['updated', 'pending', 'not_found', 'failed'];
 
 export const SKIP_TEXT = {
-    disposition_not_selected: 'Disposition not selected for processing',
+    disposition_not_selected: 'Disposition / campaign not selected for summary',
     disposition_not_explain_dmp: 'Not an Explain DMP call',
     missing_record_url: 'No recording link from the dialer',
     audio_too_short: 'Call too short (30s or less)',

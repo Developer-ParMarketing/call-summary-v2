@@ -1,9 +1,12 @@
 // Worker: processes waiting calls during the night window, or when /api/process/run is called.
 import 'dotenv/config';
+import dns from 'dns';
 import { config } from './src/config/index.js';
 import { connectDb } from './src/config/db.js';
 import { getWindow } from './src/services/schedule.js';
-import { selectedDispositions } from './src/services/dispositions.js';
+import { selectedCampaigns, selectedDispositions } from './src/services/dispositions.js';
+
+dns.setDefaultResultOrder('ipv4first'); // Zoho / token APIs over IPv4 (summary goes to Zoho from here)
 import { processCall } from './src/worker/processCall.js';
 import {
     claimNextCall, finishManualRun, getRunMode, requeueStuckCalls, skipOtherDispositions,
@@ -65,6 +68,8 @@ connectDb()
         const w = getWindow();
         console.log(`Worker started. Night window: ${w ? w.label : 'none (manual only)'}`);
         console.log(`Dispositions processed: ${selectedDispositions.join(' | ')}`);
+        console.log(`Campaigns processed (any disposition): ${selectedCampaigns.join(' | ') || 'none'}`);
+        console.log(`AI summary to Zoho (${config.zoho.summaryField}): ${config.zoho.summaryEnabled ? 'ON' : 'OFF'}`);
         console.log(`AI steps (Hinglish + summary): ${config.aiEnabled ? 'ON' : 'OFF (transcribe only)'}`);
         console.log(`Transcription: ${config.transcribeEngine === 'ai' && config.aiEnabled ? 'AI listens to the recording' : 'Bhashini'}`);
 

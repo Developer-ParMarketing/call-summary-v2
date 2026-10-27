@@ -1,15 +1,21 @@
 import { Call } from '../models/Call.js';
 import { cleanPayload, getCallId, readPayload, toCallFields } from '../services/payload.js';
-import { getRemarkTarget, syncRemarkLater } from '../services/zoho.service.js';
+import { getZohoTarget, syncRemarkLater } from '../services/zoho.service.js';
 
 // Dialer fields minus the recording link and undefined values (for updating an existing call)
 function withoutRecording({ recordUrl, ...rest }) {
     return Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 }
-// Zoho fields for the remark (empty when the call has no SD/SML portal ID or no remark)
-function zohoFields(d) {
-    const t = getRemarkTarget(d);
-    return t ? { portalId: t.portalId, zohoBrand: t.brand, zohoStatus: 'pending', zohoAttempts: 0 } : {};
+
+// Zoho fields: which portal record (needed for remark AND summary); remark marked 'pending' when there is one
+function zohoFields(d, remark) {
+    const t = getZohoTarget(d);
+    if (!t) return {};
+    return {
+        portalId: t.portalId,
+        zohoBrand: t.brand,
+        ...(remark ? { zohoStatus: 'pending', zohoAttempts: 0 } : {}),
+    };
 }
 
 // Save one call from the dialer as "queued". NOTHING is required: whatever arrives is saved.
@@ -17,24 +23,24 @@ async function saveCall(req, res, { payload, rawBody, repaired }) {
     const d = cleanPayload(payload);
     const { callId, callIdSource } = getCallId(d);
     const fields = toCallFields(d);
-    const zoho = zohoFields(d);
+    const zoho = zohoFields(d, fields.remark);
 
     console.log(
         `[ingest] ${req.method} from ${req.ip} | type=${req.get('content-type') || 'none'} | ` +
         `fields=${Object.keys(d).length} | callId=${callId} (${callIdSource})` +
-        `${zoho.portalId ? ` | remark for ${zoho.zohoBrand} ${zoho.portalId}` : ''}` +
+        `${zoho.portalId ? ` | zoho ${zoho.zohoBrand} ${zoho.portalId}${zoho.zohoStatus ? ' (remark)' : ''}` : ''}` +
         `${repaired ? ' | JSON was repaired' : ''}${rawBody ? ' | body was not JSON (saved as rawBody)' : ''}`
     );
 
     try {
         await Call.create({ callId, callIdSource, rawBody, ...fields, ...zoho, dialerData: d });
-        if (zoho.portalId) syncRemarkLater(callId);
+        if (zoho.zohoStatus) syncRemarkLater(callId);
         return res.status(202).json({ message: 'Call saved', callId, status: 'queued' });
     } catch (err) {
         if (err.code !== 11000) throw err;
 
         // Same call sent again with a new / changed remark -> save it and send it to Zoho
-        if (zoho.portalId) {
+        if (zoho.zohoStatus) {
             const changed = await Call.findOneAndUpdate(
                 { callId, $or: [{ remark: { $ne: fields.remark } }, { portalId: { $ne: zoho.portalId } }] },
                 { $set: { ...withoutRecording(fields), ...zoho } } // recording link is handled just below

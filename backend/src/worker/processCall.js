@@ -5,6 +5,7 @@ import { toHinglish } from '../services/hinglish.service.js';
 import { transliterateToHinglish } from '../services/transliterate.service.js';
 import { summarise } from '../services/summary.service.js';
 import { transcribeAndSummarise } from '../services/audio-ai.service.js';
+import { sendSummaryToZoho } from '../services/zoho.service.js';
 
 // Steps for one call. Each finished step is saved, so a retry continues where it stopped.
 //   AI engine (default):  download -> AI listens -> Hinglish transcript + summary (one request) -> done
@@ -70,6 +71,7 @@ export async function processCall(call) {
                     await call.save();
                     console.log(`[${call.callId}] done - AI transcript (${out.transcript.length} chars) + summary`
                         + (out.transcript ? '' : ' (transcript was cut off)'));
+                    await sendSummaryToZoho(call);
                     return;
                 }
                 await call.save(); // transcript saved; the summary step below fills the gap
@@ -127,6 +129,7 @@ export async function processCall(call) {
         call.errorMessage = undefined;
         await call.save();
         console.log(`[${call.callId}] done - summary ready (${call.summary.length} characters)`);
+        await sendSummaryToZoho(call);
     } catch (err) {
         const detail = err.response?.data?.error?.message; // e.g. OpenAI's own explanation
         call.status = 'failed';

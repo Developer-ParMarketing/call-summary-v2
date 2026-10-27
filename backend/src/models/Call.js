@@ -56,6 +56,11 @@ const callSchema = new mongoose.Schema(
         zohoError: String,
         zohoAttempts: Number,
         zohoSyncedAt: Date,
+        // AI summary -> Zoho field AI_Summery (same portal record)
+        zohoSummaryStatus: String,  // 'pending' | 'updated' | 'not_found' | 'failed'
+        zohoSummaryError: String,
+        zohoSummaryAttempts: Number,
+        zohoSummarySyncedAt: Date,
     },
     { timestamps: true }
 );
@@ -66,5 +71,6 @@ callSchema.index({ createdAt: -1 });                       // dashboard: newest 
 callSchema.index({ firstDisposition: 1, createdAt: -1 });  // dashboard: disposition filter
 callSchema.index({ firstDisposition: 1, status: 1 });      // stats: counts per status
 callSchema.index({ zohoStatus: 1, updatedAt: 1 });          // Zoho remark auto-retry
+callSchema.index({ zohoSummaryStatus: 1, updatedAt: 1 });   // Zoho summary auto-retry
 
 export const Call = mongoose.model('Call', callSchema);

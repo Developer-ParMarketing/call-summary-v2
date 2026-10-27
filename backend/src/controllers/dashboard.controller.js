@@ -1,5 +1,8 @@
 import { Call, STATUSES } from '../models/Call.js';
 import { selectedDispositionQuery } from '../services/dispositions.js';
+import { selectedCallQuery } from '../services/dispositions.js';
+
+if (q.dmpOnly === 'true') and.push(selectedCallQuery());
 
 export const ZOHO_STATUSES = ['pending', 'updated', 'not_found', 'failed'];
 

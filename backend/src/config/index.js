@@ -43,6 +43,8 @@ export const config = {
 
     // Only calls with these dispositions are transcribed / summarised (case doesn't matter)
     dispositions: list(process.env.PROCESS_DISPOSITIONS, 'Explain DMP,Explained DMP'),
+    // ...and every call from these campaigns, whatever the disposition (empty = none)
+    campaigns: list(process.env.PROCESS_CAMPAIGNS, ' '),
 
     // Night window for automatic processing (India time). Empty = manual only.
     window: {
@@ -58,5 +60,8 @@ export const config = {
         enabled: process.env.ZOHO_REMARK_ENABLED === 'true',
         retryMinutes: Number(process.env.ZOHO_RETRY_MINUTES) || 5,
         maxAttempts: Number(process.env.ZOHO_MAX_ATTEMPTS) || 12, // 12 x 5 min = keep trying for 1 hour
+        // AI summary -> this Zoho field on the same portal record (after the call is summarised)
+        summaryEnabled: process.env.ZOHO_SUMMARY_ENABLED === 'true',
+        summaryField: process.env.ZOHO_SUMMARY_FIELD || 'AI_Summery',
     },
 };

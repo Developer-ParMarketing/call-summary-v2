@@ -7,7 +7,7 @@ export default function Filters({
         <div className="filters">
             <label className="switch" title={dmpLabel}>
                 <input type="checkbox" checked={dmpOnly} onChange={(e) => onDmpOnly(e.target.checked)} />
-                Explain DMP calls only
+                Summary calls only
             </label>
             <input
                 type="search"
