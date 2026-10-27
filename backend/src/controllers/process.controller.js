@@ -2,7 +2,6 @@ import { config } from '../config/index.js';
 import { Call } from '../models/Call.js';
 import { Control } from '../models/Control.js';
 import { getWindow, isInsideWindow } from '../services/schedule.js';
-import { selectedDispositions } from '../services/dispositions.js';
 import { selectedCampaigns, selectedDispositions } from '../services/dispositions.js';
 
 // POST /api/process/run   ?retryFailed=true  ?summarise=true

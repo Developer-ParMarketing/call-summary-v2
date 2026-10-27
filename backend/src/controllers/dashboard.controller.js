@@ -1,8 +1,5 @@
 import { Call, STATUSES } from '../models/Call.js';
-import { selectedDispositionQuery } from '../services/dispositions.js';
 import { selectedCallQuery } from '../services/dispositions.js';
-
-if (q.dmpOnly === 'true') and.push(selectedCallQuery());
 
 export const ZOHO_STATUSES = ['pending', 'updated', 'not_found', 'failed'];
 
@@ -10,13 +7,13 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(String(d || ''));
 
 // Filters shared by the table and the counts:
-//   dmpOnly=true      only the dispositions we process (PROCESS_DISPOSITIONS)
+//   dmpOnly=true      only the calls we process (PROCESS_DISPOSITIONS or PROCESS_CAMPAIGNS)
 //   from / to         India days, e.g. 2026-10-13
 //   disposition, search, status + zoho (table only)
 function buildFilter(q, { withStatus = true } = {}) {
     const and = [];
 
-    if (q.dmpOnly === 'true') and.push({ firstDisposition: selectedDispositionQuery() });
+    if (q.dmpOnly === 'true') and.push(selectedCallQuery());
     if (q.disposition) and.push({ firstDisposition: String(q.disposition) });
     if (withStatus && STATUSES.includes(q.status)) and.push({ status: q.status });
     if (withStatus && ZOHO_STATUSES.includes(q.zoho)) and.push({ zohoStatus: q.zoho });

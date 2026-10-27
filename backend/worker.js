@@ -5,12 +5,12 @@ import { config } from './src/config/index.js';
 import { connectDb } from './src/config/db.js';
 import { getWindow } from './src/services/schedule.js';
 import { selectedCampaigns, selectedDispositions } from './src/services/dispositions.js';
-
-dns.setDefaultResultOrder('ipv4first'); // Zoho / token APIs over IPv4 (summary goes to Zoho from here)
 import { processCall } from './src/worker/processCall.js';
 import {
     claimNextCall, finishManualRun, getRunMode, requeueStuckCalls, skipOtherDispositions,
 } from './src/worker/queue.js';
+
+dns.setDefaultResultOrder('ipv4first'); // Zoho / token APIs over IPv4 (summary goes to Zoho from here)
 
 const POLL_MS = 5000;        // while running: check for the next call every 5s
 const IDLE_CHECK_MS = 10000; // while waiting: check for a start signal every 10s
@@ -34,7 +34,7 @@ async function loop() {
 
             // Other dispositions are skipped in bulk (one query), not one by one
             const skipped = await skipOtherDispositions();
-            if (skipped) console.log(`Skipped ${skipped} calls with other dispositions`);
+            if (skipped) console.log(`Skipped ${skipped} calls with other dispositions / campaigns`);
 
             const call = await claimNextCall();
             if (!call) {
