@@ -1,33 +1,44 @@
 import { chatCompletion } from './openai.js';
 
-// What a good summary looks like - shared by the text summary and the "AI listens" engine
-export const SUMMARY_FORMAT = `Write the summary in English so that someone who did NOT hear the call
-fully understands what happened - clear and specific, but without filler.
+// Who is who on our calls - shared by the text summary and the "AI listens" engine
+export const ROLES = `Our company is a debt-settlement firm in India. Our EXECUTIVE calls on behalf of OUR CLIENT
+(a borrower who has signed up with us). The person on the other side is usually a CREDITOR:
+a bank, NBFC or loan app, its collection / recovery department or a recovery agent.
+Sometimes the other person is our CLIENT himself/herself (e.g. welcome, PTP or token calls).
+Decide from the conversation who the other person is. Never call our executive an "agent" and
+never call the creditor a "customer".`;
 
-Start with:
-Overview: 2-3 sentences (max 60 words) - who called whom and why, what was discussed, how it ended.
+// What a good summary looks like
+export const SUMMARY_FORMAT = `Write a SHORT, factual summary in English for our team. Only facts from the call -
+no story, no opinions about tone unless it matters (e.g. abusive / threatening).
 
-Then key points, ONE sentence each (max 25 words), using these labels in this order.
+First line:
+Overview: 1-2 sentences (max 40 words) - whom we spoke to, about which client/loan, and the result.
+
+Then key points, ONE short line each, with these labels in this order.
 LEAVE OUT any label the call did not cover:
-Customer situation: their problem in their own terms (job, salary delays, medical, business loss...)
-Loans: how many, type (personal / credit card / app loans), banks or apps named, total outstanding
-EMI & income: current monthly EMI vs monthly income, missed EMIs, recovery or harassment calls
-Agent explained: the service or plan explained (e.g. combining EMIs into one, new EMI, fees, tenure)
-Customer concerns: questions, doubts or objections the customer raised
-Outcome: customer's decision or mood (interested / unsure / not interested / wants a call back)
-Next step: what happens next and when (documents, transfer to advisor, call back time)
+Spoke with: creditor / bank / app name, department and person's name (or "Client" if it was our client)
+Client: our client's name and any loan / account / reference number mentioned
+Loan details: loan type, outstanding, overdue, EMI, DPD / months unpaid
+Amounts & dates: every amount and date said (settlement offer, PTP, token, payment, due dates)
+Contacts: phone numbers, emails, branch or address given in the call
+Discussion: what we asked or explained (settlement, stop harassment, NOC, closure, payment plan...)
+Creditor response: what they agreed, refused or asked for
+Outcome: result of the call (agreed / refused / pending / wrong number / not reachable)
+Next step: what happens next, who does it and when
 
-Rules: keep exact numbers (Rs amounts, counts, dates) and names of banks/apps. Don't guess -
-leave a label out if it is unclear. For a very short call, the Overview and Outcome are enough.`;
+Rules: write numbers, amounts (Rs), dates and names EXACTLY as said. Don't guess - leave a label out
+if it is unclear. For a very short call, Overview and Outcome are enough.`;
 
-const PROMPT = `You summarise recorded phone calls from a debt-settlement / loan advisory company in India.
+const PROMPT = `You summarise recorded phone calls of a debt-settlement company in India.
+
+${ROLES}
 
 The transcript comes from speech-to-text: it is in Hinglish or Hindi, and some words may be misheard.
-Agent = the company's advisor. Customer = the borrower talking about THEIR loans and EMIs.
 
 ${SUMMARY_FORMAT}
 
-Return ONLY a JSON object: {"summary": "Overview: ...\nCustomer situation: ...\nOutcome: ..."}`;
+Return ONLY a JSON object: {"summary": "Overview: ...\nSpoke with: ...\nOutcome: ..."}`;
 
 export async function summarise(transcript, context = {}) {
     const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');

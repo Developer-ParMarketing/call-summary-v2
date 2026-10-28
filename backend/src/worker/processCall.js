@@ -10,7 +10,17 @@ import { sendSummaryToZoho } from '../services/zoho.service.js';
 // Steps for one call. Each finished step is saved, so a retry continues where it stopped.
 //   AI engine (default):  download -> AI listens -> Hinglish transcript + summary (one request) -> done
 //   Bhashini engine:      download -> Bhashini transcript -> Hinglish -> summary -> done
-
+// What the AI is told about the call (helps it name the right people and bank).
+// No phone numbers or emails are sent.
+function aiContext(call) {
+    return {
+        'Our executive': call.agentName,
+        Campaign: call.campaign,
+        Disposition: [call.firstDisposition, call.secondDisposition].filter(Boolean).join(' / '),
+        'Our client': call.clientNameZoho || call.customerName,
+        'Creditor bank (from dialer)': call.creditorsBankName,
+    };
+}
 async function skip(call, reason, logText) {
     // Remark already in Zoho -> nothing left to do for this call: "Completed" instead of "Skipped"
     call.status = call.zohoStatus === 'updated' ? 'completed' : 'skipped';
@@ -54,10 +64,7 @@ export async function processCall(call) {
             if (config.transcribeEngine === 'ai' && config.aiEnabled) {
                 stage = 'ai-audio';
                 console.log(`[${call.callId}] AI listening to ${call.audioSeconds}s of audio...`);
-                const out = await transcribeAndSummarise(filePath, seconds, {
-                    Agent: call.agentName,
-                    Campaign: call.campaign,
-                });
+                const out = await transcribeAndSummarise(filePath, seconds, aiContext(call));
                 if (!out.transcript && !out.summary) return await skip(call, 'no_speech', 'no conversation in the recording');
 
                 call.transcript = out.transcript || undefined;
@@ -120,10 +127,7 @@ export async function processCall(call) {
         // 3) English summary (from the Hinglish text when available - easier to read for the model)
         stage = 'summary';
         // Only the agent and campaign are shared with the AI - no customer name, phone or email
-        call.summary = await summarise(call.transcriptHinglish || call.transcript, {
-            Agent: call.agentName,
-            Campaign: call.campaign,
-        });
+        call.summary = await summarise(call.transcriptHinglish || call.transcript, aiContext(call));
 
         call.status = 'done';
         call.errorMessage = undefined;

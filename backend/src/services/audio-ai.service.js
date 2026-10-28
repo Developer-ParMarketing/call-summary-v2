@@ -1,15 +1,16 @@
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { chatCompletion } from './openai.js';
-import { SUMMARY_FORMAT } from './summary.service.js';
+import { ROLES, SUMMARY_FORMAT } from './summary.service.js';
 
 // The AI listens to the recording itself and returns, in ONE request:
-//   - a Hinglish transcript with "Agent:" / "Customer:" labels
+//   - a Hinglish transcript with "Executive:" / "Creditor:" (or "Client:") labels
 //   - the short key-point summary
 // Much more accurate than Bhashini for calls that mix Hindi and English.
 
-const PROMPT = `This is a recorded phone call between an advisor of a debt-management company in India and a customer.
-People mix Hindi and English.
+const PROMPT = `This is a recorded phone call of a debt-settlement company in India. People mix Hindi and English.
+
+${ROLES}
 
 Reply in EXACTLY this format (plain text, no JSON, no code fences):
 
@@ -19,7 +20,8 @@ ${SUMMARY_FORMAT}
 === TRANSCRIPT ===
 The whole call in Hinglish: Hindi words in Roman letters (as typed on WhatsApp), English words in
 normal English spelling, numbers and amounts as digits. Start each turn on a new line with
-"Agent:" or "Customer:".
+"Executive:" (our side) and "Creditor:" for the bank / app / recovery side - or "Client:" if the
+other person is our client. Use "Other:" only if it is really unclear.
 
 If there is no real conversation (silence, ringing, voicemail), write only: NO CONVERSATION`;
 
