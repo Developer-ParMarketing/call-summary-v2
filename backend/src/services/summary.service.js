@@ -9,7 +9,8 @@ Decide from the conversation who the other person is. Never call our executive a
 never call the creditor a "customer".`;
 
 // What a good summary looks like
-export const SUMMARY_FORMAT = `Write a SHORT, factual summary in English for our team: key points only.
+export const SUMMARY_FORMAT = `Write a SHORT, factual summary in English: key points only.
+This summary is shared with OUR CLIENT, so write it as a clear update for them - no internal notes.
 No overview, no introduction, no story - start directly with the first label below.
 
 ONE short line per label, in this order. LEAVE OUT any label the call did not cover:
@@ -20,12 +21,11 @@ Amounts & dates: every amount and date said (settlement offer, PTP, token, payme
 Contacts: phone numbers, emails, branch or address given in the call
 Discussion: what we asked or explained (settlement, stop harassment, NOC, closure, payment plan...)
 Creditor response: what they agreed, refused or asked for
-Outcome: result of the call (agreed / refused / pending / wrong number / not reachable)
-Next step: what happens next, who does it and when
 
+Do NOT add "Outcome" or "Next step" lines.
 Rules: write numbers, amounts (Rs), dates and names EXACTLY as said. Don't guess - leave a label out
 if it is unclear. No opinions about tone unless it matters (e.g. abusive / threatening).
-For a very short call, "Spoke with" and "Outcome" are enough.`;
+For a very short call, "Spoke with" and one other line are enough.`;
 
 const PROMPT = `You summarise recorded phone calls of a debt-settlement company in India.
 
@@ -35,7 +35,7 @@ The transcript comes from speech-to-text: it is in Hinglish or Hindi, and some w
 
 ${SUMMARY_FORMAT}
 
-Return ONLY a JSON object: {"summary": "Spoke with: ...\nDiscussion: ...\nOutcome: ..."}`;
+Return ONLY a JSON object: {"summary": "Spoke with: ...\nDiscussion: ...\nCreditor response: ..."}`;
 
 export async function summarise(transcript, context = {}) {
     const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
