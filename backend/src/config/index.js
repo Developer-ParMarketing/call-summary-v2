@@ -63,5 +63,9 @@ export const config = {
         // AI summary -> this Zoho field on the same portal record (after the call is summarised)
         summaryEnabled: process.env.ZOHO_SUMMARY_ENABLED === 'true',
         summaryField: process.env.ZOHO_SUMMARY_FIELD || 'AI_Summery',
+        // With the remark, also set Status = Completed on the portal record (only for these brands)
+        statusField: process.env.ZOHO_STATUS_FIELD ?? 'Status',
+        statusValue: process.env.ZOHO_STATUS_VALUE || 'Completed',
+        statusBrands: list(process.env.ZOHO_STATUS_BRANDS, 'sd').map((b) => b.toLowerCase()),
     },
 };

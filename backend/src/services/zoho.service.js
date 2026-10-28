@@ -100,7 +100,12 @@ export async function syncRemark(callId) {
     const call = await Call.findOne({ callId });
     if (!call?.remark || !call.portalId || !call.zohoBrand) return;
 
-    const result = await tryUpdate(call.zohoBrand, call.portalId, { [ZOHO_CONFIG[call.zohoBrand].commentField]: call.remark });
+    // Remark -> Agent_Comments, and for the selected brands also Status = Completed (same update)
+    const fields = { [ZOHO_CONFIG[call.zohoBrand].commentField]: call.remark };
+    const { statusField, statusValue, statusBrands } = config.zoho;
+    if (statusField && statusBrands.includes(call.zohoBrand)) fields[statusField] = statusValue;
+
+    const result = await tryUpdate(call.zohoBrand, call.portalId, fields);
 
     call.zohoStatus = result.status;
     call.zohoRecordId = result.zohoRecordId || call.zohoRecordId;
