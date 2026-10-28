@@ -22,16 +22,42 @@ export function cleanPayload(payload) {
     return data;
 }
 
+// Line breaks / tabs typed INSIDE a value (e.g. a multi-line Remark) are not allowed in JSON.
+// Turn them into \n / \t, only inside "strings" (line breaks between fields stay as they are).
+function escapeControlCharsInStrings(text) {
+    let out = '';
+    let inString = false;
+    let escaped = false;
+    for (const ch of text) {
+        if (!inString) {
+            if (ch === '"') inString = true;
+            out += ch;
+            continue;
+        }
+        if (escaped) { escaped = false; out += ch; continue; }
+        if (ch === '\\') { escaped = true; out += ch; continue; }
+        if (ch === '"') { inString = false; out += ch; continue; }
+        if (ch === '\n') { out += '\\n'; continue; }
+        if (ch === '\r') { out += '\\r'; continue; }
+        if (ch === '\t') { out += '\\t'; continue; }
+        if (ch < ' ') continue; // other invisible control characters
+        out += ch;
+    }
+    return out;
+}
+
 // Read text as JSON; if that fails, repair common mistakes from copied templates:
-// invisible spaces, smart quotes, `backticks`, missing commas between lines, trailing commas.
+// invisible spaces, smart quotes, `backticks`, line breaks inside values,
+// missing commas between lines, trailing commas.
 export function parseJsonLoose(text) {
     try {
         return { data: JSON.parse(text), repaired: false };
     } catch {
-        const fixed = text
+        const cleaned = text
             .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, ' ')
             .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
-            .replace(/`/g, '"')
+            .replace(/`/g, '"');
+        const fixed = escapeControlCharsInStrings(cleaned)
             .replace(/"\s*\n\s*"/g, '",\n"')
             .replace(/,\s*([}\]])/g, '$1');
         try {
@@ -41,7 +67,6 @@ export function parseJsonLoose(text) {
         }
     }
 }
-
 // Body (raw text or object) -> { payload, rawBody?, repaired? }
 export function readPayload(contentType, body) {
     if (body && typeof body === 'object') return { payload: body };
