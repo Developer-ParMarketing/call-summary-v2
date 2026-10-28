@@ -55,25 +55,39 @@ function parseAnswer(content) {
 
 export { parseAnswer as _parseAnswerForTests };
 
+// Second try when the AI wrote a summary but left the transcript out (happens now and then)
+const TRANSCRIPT_ONLY = `This is a recorded phone call of a debt-settlement company in India. People mix Hindi and English.
+
+${ROLES}
+
+Write ONLY the transcript of the whole call (plain text, no summary, no headings, no code fences):
+Hinglish - Hindi words in Roman letters (as typed on WhatsApp), English words in normal English
+spelling, numbers and amounts as digits. Start each turn on a new line with "Executive:" (our side)
+and "Creditor:" for the bank / app / recovery side - or "Client:" if the other person is our client.`;
+
+function askAboutAudio(audio, text) {
+    return chatCompletion({
+        temperature: 0.2,
+        max_tokens: 32000, // long calls give long transcripts
+        messages: [{
+            role: 'user',
+            content: [
+                { type: 'text', text },
+                { type: 'input_audio', input_audio: { data: audio, format: 'mp3' } },
+            ],
+        }],
+    });
+}
+
 export async function transcribeAndSummarise(filePath, seconds, context = {}) {
     const mp3Path = `${filePath}.mp3`;
     try {
         await toSpeechMp3(filePath, mp3Path, seconds);
         const audio = fs.readFileSync(mp3Path).toString('base64');
         const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
+        const knownText = known ? `Known from the dialer:\n${known}\n\n` : '';
 
-        const res = await chatCompletion({
-            temperature: 0.2,
-            max_tokens: 32000, // long calls give long transcripts
-            messages: [{
-                role: 'user',
-                content: [
-                    { type: 'text', text: `${known ? `Known from the dialer:\n${known}\n\n` : ''}${PROMPT}` },
-                    { type: 'input_audio', input_audio: { data: audio, format: 'mp3' } },
-                ],
-            }],
-        });
-
+        const res = await askAboutAudio(audio, `${knownText}${PROMPT}`);
         const choice = res.data.choices?.[0];
         const out = parseAnswer(choice?.message?.content);
         if (choice?.finish_reason === 'length') {
@@ -82,6 +96,16 @@ export async function transcribeAndSummarise(filePath, seconds, context = {}) {
         const said = String(choice?.message?.content || '');
         if (!out.transcript && !out.summary && said.trim() && !/NO CONVERSATION/i.test(said)) {
             throw new Error('AI answer could not be read');
+        }
+
+        // Summary came back but no transcript -> ask once more, for the transcript only
+        if (out.summary && !out.transcript) {
+            console.log('[ai] summary without transcript - asking again for the transcript only');
+            const again = await askAboutAudio(audio, `${knownText}${TRANSCRIPT_ONLY}`);
+            const text = String(again.data.choices?.[0]?.message?.content || '')
+                .trim().replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '')
+                .replace(/^===\s*TRANSCRIPT\s*===\s*/i, '');
+            if (text && !/^\s*NO CONVERSATION\s*$/i.test(text)) out.transcript = text.trim();
         }
         return out;
     } finally {
