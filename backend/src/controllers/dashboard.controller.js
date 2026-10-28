@@ -56,7 +56,7 @@ export async function listCalls(req, res) {
             {
                 $project: {
                     _id: 0, callId: 1, status: 1, skipReason: 1, errorMessage: 1,
-                    customerName: 1, phone: 1, agentName: 1, campaign: 1,
+                    customerName: 1, clientNameZoho: 1, phone: 1, agentName: 1, campaign: 1,
                     firstDisposition: 1, audioSeconds: 1, callStartTime: 1, callEndTime: 1, createdAt: 1,
                     zohoStatus: 1, zohoError: 1,
                     hasTranscript: hasText('$transcript'),

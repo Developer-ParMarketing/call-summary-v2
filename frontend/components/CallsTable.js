@@ -28,7 +28,7 @@ export default function CallsTable({ items, loading, onOpen }) {
                             onKeyDown={(e) => e.key === 'Enter' && onOpen(c.callId)}
                         >
                             <td>{formatShort(c.createdAt)}</td>
-                            <td>{c.customerName || '–'}<div className="sub">{c.phone}</div></td>
+                            <td>{c.customerName || c.clientNameZoho || '–'}<div className="sub">{c.phone}</div></td>
                             <td>{c.agentName || '–'}</td>
                             <td>{c.campaign || '–'}</td>
                             <td>{c.firstDisposition || '–'}</td>

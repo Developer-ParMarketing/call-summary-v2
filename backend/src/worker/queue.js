@@ -7,13 +7,17 @@ import { otherCallQuery, selectedCallQuery } from '../services/dispositions.js';
 // Skip ALL waiting calls that are not selected (other dispositions AND not in PROCESS_CAMPAIGNS)
 // in ONE database update (instead of loading and saving them one by one). Returns how many were skipped.
 export async function skipOtherDispositions() {
+    // Remark already in Zoho -> "Completed"; the rest -> "Skipped"
+    const done = await Call.updateMany(
+        { status: 'queued', zohoStatus: 'updated', ...otherCallQuery() },
+        { $set: { status: 'completed', skipReason: 'disposition_not_selected' } }
+    );
     const r = await Call.updateMany(
         { status: 'queued', ...otherCallQuery() },
         { $set: { status: 'skipped', skipReason: 'disposition_not_selected' } }
     );
-    return r.modifiedCount;
+    return r.modifiedCount + done.modifiedCount;
 }
-
 // Take the oldest waiting selected call (disposition OR campaign) and mark it "processing" in ONE step,
 // so two workers can never grab the same call
 export function claimNextCall() {

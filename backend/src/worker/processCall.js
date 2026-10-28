@@ -12,12 +12,12 @@ import { sendSummaryToZoho } from '../services/zoho.service.js';
 //   Bhashini engine:      download -> Bhashini transcript -> Hinglish -> summary -> done
 
 async function skip(call, reason, logText) {
-    call.status = 'skipped';
+    // Remark already in Zoho -> nothing left to do for this call: "Completed" instead of "Skipped"
+    call.status = call.zohoStatus === 'updated' ? 'completed' : 'skipped';
     call.skipReason = reason;
     await call.save();
-    console.log(`[${call.callId}] skipped: ${logText}`);
+    console.log(`[${call.callId}] ${call.status}: ${logText}`);
 }
-
 export async function processCall(call) {
     console.log(`[${call.callId}] processing`);
     let stage = 'download';

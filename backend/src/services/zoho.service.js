@@ -107,6 +107,10 @@ export async function syncRemark(callId) {
     call.zohoError = result.error;
     call.zohoAttempts = (call.zohoAttempts || 0) + 1;
     call.zohoSyncedAt = new Date();
+    // Remark added and this call will not be summarised (no recording, or already skipped) -> Completed
+    if (result.status === 'updated' && (call.status === 'skipped' || (call.status === 'queued' && !call.recordUrl))) {
+        call.status = 'completed';
+    }
     await call.save();
     console.log(`[zoho] remark ${callId} ${call.zohoBrand} ${call.portalId}: ${result.status}${result.error ? ` (${result.error})` : ''}`);
 }

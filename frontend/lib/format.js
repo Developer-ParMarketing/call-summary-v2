@@ -5,10 +5,11 @@ export const STATUS = {
     processing: { label: 'Working on it', color: 'var(--s-processing)' },
     transcribed: { label: 'Transcript only', color: 'var(--s-transcribed)' },
     done: { label: 'Summary ready', color: 'var(--s-done)' },
+    completed: { label: 'Completed', color: 'var(--s-done)' },
     skipped: { label: 'Skipped', color: 'var(--s-skipped)' },
     failed: { label: 'Failed', color: 'var(--s-failed)' },
 };
-export const STATUS_ORDER = ['queued', 'processing', 'transcribed', 'done', 'skipped', 'failed'];
+export const STATUS_ORDER = ['queued', 'processing', 'transcribed', 'done', 'completed', 'skipped', 'failed'];
 
 // Dialer remark -> Zoho (Agent_Comments)
 export const ZOHO = {
@@ -51,6 +52,7 @@ export function callLength(call) {
 
 // One short sentence explaining why a call is where it is
 export function callNote(call) {
+    if (call.status === 'completed') return 'Remark added to Zoho (nothing to summarise)';
     if (call.status === 'skipped') return SKIP_TEXT[call.skipReason] || call.skipReason || '';
     if (call.status === 'failed') return `Stopped at ${String(call.errorMessage || 'unknown').split(':')[0]}`;
     if (call.status === 'transcribed') return 'Transcript ready, summary not written yet';

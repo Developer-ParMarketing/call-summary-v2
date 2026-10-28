@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
-export const STATUSES = ['queued', 'processing', 'transcribed', 'done', 'failed', 'skipped'];
+// completed = remark added to Zoho and nothing to summarise (no recording / disposition not selected)
+export const STATUSES = ['queued', 'processing', 'transcribed', 'done', 'completed', 'failed', 'skipped'];
 
 const callSchema = new mongoose.Schema(
     {

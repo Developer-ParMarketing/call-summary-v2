@@ -100,7 +100,7 @@ export default function CallPanel({ callId, apiKey, onClose, onAuthError, onRetr
             <aside className={`panel ${open ? 'open' : ''}`} aria-label="Call details" aria-hidden={!open}>
                 <div className="panel-head">
                     <div>
-                        <h2>{call ? (call.customerName || 'Unknown customer') : 'Loading…'}</h2>
+                        <h2>{call ? (call.customerName || call.clientNameZoho || 'Unknown customer') : 'Loading…'}</h2>
                         {call && (
                             <div className="sub">
                                 <StatusBadge status={call.status} /> &nbsp; {call.firstDisposition || 'No disposition'}
