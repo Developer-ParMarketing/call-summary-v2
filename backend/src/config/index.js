@@ -55,6 +55,11 @@ export const config = {
 
     minCallSeconds: Number(process.env.MIN_CALL_SECONDS) || 30,
 
+    // Real-time: process calls all day as they arrive (the night window still runs and retries failed calls)
+    realtime: process.env.PROCESS_REALTIME === 'true',
+    // Real-time waits this long after a call arrives, so the PBX has finished saving the recording
+    realtimeDelayMinutes: Number(process.env.PROCESS_DELAY_MINUTES ?? 2),
+
     // Dialer Remark -> Zoho portal Agent_Comments (SD / SML), same as lead-upload
     zoho: {
         enabled: process.env.ZOHO_REMARK_ENABLED === 'true',

@@ -1,4 +1,5 @@
-// Worker: processes waiting calls during the night window, or when /api/process/run is called.
+// Worker: processes waiting calls in real time (PROCESS_REALTIME=true), during the night window,
+// or when /api/process/run is called.
 import 'dotenv/config';
 import dns from 'dns';
 import { config } from './src/config/index.js';
@@ -7,7 +8,7 @@ import { getWindow } from './src/services/schedule.js';
 import { selectedCampaigns, selectedDispositions } from './src/services/dispositions.js';
 import { processCall } from './src/worker/processCall.js';
 import {
-    claimNextCall, finishManualRun, getRunMode, requeueStuckCalls, skipOtherDispositions,
+    claimNextCall, finishManualRun, getRunMode, requeueFailedCalls, requeueStuckCalls, skipOtherDispositions,
 } from './src/worker/queue.js';
 
 dns.setDefaultResultOrder('ipv4first'); // Zoho / token APIs over IPv4 (summary goes to Zoho from here)
@@ -25,9 +26,13 @@ async function loop() {
         try {
             const mode = await getRunMode();
             if (mode !== lastMode) {
-                console.log(mode
-                    ? `Processing ON (${mode === 'manual' ? 'manual run' : 'night window'})`
-                    : 'Processing OFF - waiting for the night window or /api/process/run');
+                const label = { manual: 'manual run', schedule: 'night window', realtime: 'real-time' }[mode];
+                console.log(mode ? `Processing ON (${label})` : 'Processing OFF - waiting for the night window or /api/process/run');
+                // Night window just opened: give failed calls one more try (catches anything missed in the day)
+                if (mode === 'schedule') {
+                    const again = await requeueFailedCalls();
+                    if (again) console.log(`Night run: ${again} failed calls queued again`);
+                }
                 lastMode = mode;
             }
             if (!mode) { await sleep(IDLE_CHECK_MS); continue; }
@@ -36,7 +41,7 @@ async function loop() {
             const skipped = await skipOtherDispositions();
             if (skipped) console.log(`Skipped ${skipped} calls with other dispositions / campaigns`);
 
-            const call = await claimNextCall();
+            const call = await claimNextCall(mode);
             if (!call) {
                 if (mode === 'manual') {
                     await finishManualRun();
@@ -67,6 +72,7 @@ connectDb()
     .then(async () => {
         const w = getWindow();
         console.log(`Worker started. Night window: ${w ? w.label : 'none (manual only)'}`);
+        console.log(`Real-time processing: ${config.realtime ? `ON (calls are processed ${config.realtimeDelayMinutes} min after they arrive)` : 'OFF (night window / manual only)'}`);
         console.log(`Dispositions processed: ${selectedDispositions.join(' | ')}`);
         console.log(`Campaigns processed (any disposition): ${selectedCampaigns.join(' | ') || 'none'}`);
         console.log(`AI summary to Zoho (${config.zoho.summaryField}): ${config.zoho.summaryEnabled ? 'ON' : 'OFF'}`);

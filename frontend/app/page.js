@@ -153,7 +153,7 @@ export default function DashboardPage() {
 
     const running = engine?.manualRunActive;
     const engineText = engine
-        ? (running ? 'running now' : engine.insideTimeWindowNow ? 'running (night window)' : 'paused')
+        ? (running ? 'running now' : engine.insideTimeWindowNow ? 'running (night window)' : engine.realtime ? 'running (real-time)' : 'paused')
         : null;
     const start = list.total ? (page - 1) * PAGE_SIZE + 1 : 0;
     const end = Math.min(page * PAGE_SIZE, list.total);

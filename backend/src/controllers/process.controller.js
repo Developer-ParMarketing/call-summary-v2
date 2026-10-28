@@ -59,6 +59,7 @@ export async function status(req, res) {
         lastManualRunFinishedAt: control?.lastRunFinishedAt || null,
         timeWindow: w ? w.label : 'none (manual only)',
         insideTimeWindowNow: isInsideWindow(),
+        realtime: config.realtime,
         summariesEnabled: config.aiEnabled,
         hinglishEnabled: config.hinglishEnabled,
         hinglishSource: config.hinglishSource,
