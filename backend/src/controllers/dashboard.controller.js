@@ -1,6 +1,6 @@
 import { Call, STATUSES } from '../models/Call.js';
-import { selectedCallQuery } from '../services/dispositions.js';
 import { selectedCallQuery, selectedDispositions } from '../services/dispositions.js';
+
 export const ZOHO_STATUSES = ['pending', 'updated', 'not_found', 'failed'];
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
