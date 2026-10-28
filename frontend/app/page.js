@@ -27,6 +27,7 @@ export default function DashboardPage() {
     const [zohoCounts, setZohoCounts] = useState({});
     const [list, setList] = useState({ items: [], total: 0, pages: 1 });
     const [dispositions, setDispositions] = useState([]);
+    const [selectedDispositions, setSelectedDispositions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openId, setOpenId] = useState(null);
     const [autoRefresh, setAutoRefresh] = useState(true);
@@ -88,7 +89,10 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!apiKey) return;
-        apiFetch('/api/dashboard/filters', apiKey).then((f) => setDispositions(f.dispositions)).catch(() => { });
+        apiFetch('/api/dashboard/filters', apiKey).then((f) => {
+            setDispositions(f.dispositions || []);
+            setSelectedDispositions(f.selected || []);
+        }).catch(() => { });
     }, [apiKey]);
 
     // Auto-refresh every 30 seconds while the tab is visible
@@ -199,6 +203,7 @@ export default function DashboardPage() {
                     onSearch={setSearchInput}
                     disposition={filters.disposition}
                     dispositions={dispositions}
+                    selected={selectedDispositions}
                     zoho={filters.zoho}
                     from={filters.from}
                     to={filters.to}

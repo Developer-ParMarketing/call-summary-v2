@@ -1,8 +1,13 @@
-// "Explain DMP only" switch, search box, disposition dropdown, Zoho dropdown and date range
+// "Summary calls only" switch (selected dispositions + campaigns), search box, disposition dropdown and date range
 
 export default function Filters({
-    dmpOnly, onDmpOnly, dmpLabel, search, onSearch, disposition, dispositions, zoho, from, to, onChange, onClear,
+    dmpOnly, onDmpOnly, dmpLabel, search, onSearch, disposition, dispositions, selected = [], zoho, from, to, onChange, onClear,
 }) {
+    // Split the dropdown: dispositions we summarise (from .env) / everything else the dialer sent
+    const norm = (t) => String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const selectedSet = new Set(selected.map(norm));
+    const others = dispositions.filter((d) => !selectedSet.has(norm(d)));
+
     return (
         <div className="filters">
             <label className="switch" title={dmpLabel}>
@@ -13,12 +18,21 @@ export default function Filters({
                 type="search"
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
-                placeholder="Search call ID, customer, phone, agent or campaign"
+                placeholder="Search call ID, customer, phone, agent, campaign or portal ID"
                 aria-label="Search calls"
             />
             <select value={disposition} onChange={(e) => onChange('disposition', e.target.value)} aria-label="Disposition">
                 <option value="">All dispositions</option>
-                {dispositions.map((d) => <option key={d} value={d}>{d}</option>)}
+                {selected.length > 0 && (
+                    <optgroup label="Summarised (PROCESS_DISPOSITIONS)">
+                        {selected.map((d) => <option key={`s-${d}`} value={d}>{d}</option>)}
+                    </optgroup>
+                )}
+                {others.length > 0 && (
+                    <optgroup label="Other dispositions received">
+                        {others.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </optgroup>
+                )}
             </select>
             <select value={zoho} onChange={(e) => onChange('zoho', e.target.value)} aria-label="Zoho remark">
                 <option value="">Zoho: all calls</option>

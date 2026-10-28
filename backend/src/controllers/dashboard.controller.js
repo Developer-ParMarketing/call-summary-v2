@@ -1,6 +1,6 @@
 import { Call, STATUSES } from '../models/Call.js';
 import { selectedCallQuery } from '../services/dispositions.js';
-
+import { selectedCallQuery, selectedDispositions } from '../services/dispositions.js';
 export const ZOHO_STATUSES = ['pending', 'updated', 'not_found', 'failed'];
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -14,7 +14,11 @@ function buildFilter(q, { withStatus = true } = {}) {
     const and = [];
 
     if (q.dmpOnly === 'true') and.push(selectedCallQuery());
-    if (q.disposition) and.push({ firstDisposition: String(q.disposition) });
+    if (q.disposition) {
+        // case / extra spaces don't matter ("creditor call" = "Creditor Call")
+        const words = String(q.disposition).trim().split(/\s+/).map(escapeRegex).join('\\s+');
+        and.push({ firstDisposition: new RegExp(`^\\s*${words}\\s*$`, 'i') });
+    }
     if (withStatus && STATUSES.includes(q.status)) and.push({ status: q.status });
     if (withStatus && ZOHO_STATUSES.includes(q.zoho)) and.push({ zohoStatus: q.zoho });
     if (withStatus && q.zoho === 'any') and.push({ zohoStatus: { $in: ZOHO_STATUSES } });
@@ -96,7 +100,9 @@ export async function getCall(req, res) {
 }
 
 // GET /api/dashboard/filters  -> values for the disposition dropdown
+//   selected:    the PROCESS_DISPOSITIONS list (summarised)
+//   dispositions: every disposition the dialer has actually sent
 export async function filters(req, res) {
     const dispositions = (await Call.distinct('firstDisposition')).filter(Boolean).sort();
-    res.json({ dispositions });
+    res.json({ dispositions, selected: selectedDispositions });
 }
