@@ -9,14 +9,10 @@ Decide from the conversation who the other person is. Never call our executive a
 never call the creditor a "customer".`;
 
 // What a good summary looks like
-export const SUMMARY_FORMAT = `Write a SHORT, factual summary in English for our team. Only facts from the call -
-no story, no opinions about tone unless it matters (e.g. abusive / threatening).
+export const SUMMARY_FORMAT = `Write a SHORT, factual summary in English for our team: key points only.
+No overview, no introduction, no story - start directly with the first label below.
 
-First line:
-Overview: 1-2 sentences (max 40 words) - whom we spoke to, about which client/loan, and the result.
-
-Then key points, ONE short line each, with these labels in this order.
-LEAVE OUT any label the call did not cover:
+ONE short line per label, in this order. LEAVE OUT any label the call did not cover:
 Spoke with: creditor / bank / app name, department and person's name (or "Client" if it was our client)
 Client: our client's name and any loan / account / reference number mentioned
 Loan details: loan type, outstanding, overdue, EMI, DPD / months unpaid
@@ -28,7 +24,8 @@ Outcome: result of the call (agreed / refused / pending / wrong number / not rea
 Next step: what happens next, who does it and when
 
 Rules: write numbers, amounts (Rs), dates and names EXACTLY as said. Don't guess - leave a label out
-if it is unclear. For a very short call, Overview and Outcome are enough.`;
+if it is unclear. No opinions about tone unless it matters (e.g. abusive / threatening).
+For a very short call, "Spoke with" and "Outcome" are enough.`;
 
 const PROMPT = `You summarise recorded phone calls of a debt-settlement company in India.
 
@@ -38,7 +35,7 @@ The transcript comes from speech-to-text: it is in Hinglish or Hindi, and some w
 
 ${SUMMARY_FORMAT}
 
-Return ONLY a JSON object: {"summary": "Overview: ...\nSpoke with: ...\nOutcome: ..."}`;
+Return ONLY a JSON object: {"summary": "Spoke with: ...\nDiscussion: ...\nOutcome: ..."}`;
 
 export async function summarise(transcript, context = {}) {
     const known = Object.entries(context).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join('\n');
